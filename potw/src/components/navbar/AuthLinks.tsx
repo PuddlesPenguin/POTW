@@ -15,7 +15,7 @@ function AuthLinks({ user, setUser }: AuthLinksProps) {
 
   const handleLogoutClick = () => {
     setUser(null)
-    navigate('/logout')
+    navigate('/')
   }
 
   const handleSignupClick = () => {

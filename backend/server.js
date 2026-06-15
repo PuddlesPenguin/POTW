@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes.js';
+import problemRoutes from './routes/problemRoutes.js';
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+app.use('/api/problems', problemRoutes);
 
 app.get('/', (_req, res) => {
   res.send('Hello World!');

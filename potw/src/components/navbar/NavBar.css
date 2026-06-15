@@ -134,7 +134,7 @@
 }
 
 .dropdown-panel {
-    width: 260px;
+    width: 300px;
     max-width: calc(100vw - 24px);
     position: absolute;
     top: calc(100% + 8px);
@@ -177,4 +177,5 @@
 .dropdown-panel .auth-button {
     width: 100%;
     text-align: left;
+    box-sizing: border-box;
 }

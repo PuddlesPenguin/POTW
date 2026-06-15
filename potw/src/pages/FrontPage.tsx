@@ -1,5 +1,7 @@
 import NavBar from '../components/navbar/NavBar'
+import CurrentProb from './../components/problem-widget/CurrentProb'
 import type { SetUser, UserState } from '../types/user'
+import './FrontPage.css'
 
 type Props = {
   user: UserState
@@ -10,8 +12,10 @@ function FrontPage({ user, setUser }: Props) {
   return (
     <div className="front-page">
       <NavBar user={user} setUser={setUser} />
-      <h1>Welcome to Purdue Problem of the Week!!</h1>
-      <p>Discover the best  problems of the week.</p>
+      <div className="front-page-hero">
+        <h1>This weeks Problem(s)!</h1>
+      </div>
+      <CurrentProb />
     </div>
   )
 }

@@ -1,249 +1,179 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { MathJax, MathJaxContext } from 'better-react-mathjax'
+import { apiRequest } from '../../lib/api'
+import type { Problem } from '../../types/problem'
+import { formatDueTime } from '../../types/problem'
+import type { UserState } from '../../types/user'
 import './CurrentProb.css'
 
-type Problem = {
-  id: number
-  title: string
-  statement_latex: string
-  problem_type: string
-  is_current: boolean
-  difficulty_rating?: string | number | null
-  proposed_by?: string | null
-  release_date?: string | null
-  due_date?: string | null
-  hints?: unknown
-}
-
+type Props = { user: UserState }
 type ProblemType = 'Computational' | 'Proof-based'
 
 const mathJaxConfig = {
-  tex: {
-    inlineMath: [['$', '$'], ['\\(', '\\)']],
-    displayMath: [['$$', '$$'], ['\\[', '\\]']],
-  },
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
 }
 
-function getProblemTypeLabel(problemType: string): ProblemType {
+function getProblemType(problemType: string): ProblemType {
   return problemType.toLowerCase().includes('proof') ? 'Proof-based' : 'Computational'
 }
 
-function formatDate(dateValue?: string | null) {
-  if (!dateValue) {
-    return null
-  }
-
-  const parsedDate = new Date(dateValue)
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return null
-  }
-
-  return parsedDate.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+function difficultyClass(rating: number) {
+  if (rating <= 2) return 'easy'
+  if (rating <= 4) return 'medium'
+  if (rating <= 6) return 'challenging'
+  return 'hard'
 }
 
-function formatDifficulty(difficulty?: string | number | null) {
-  if (difficulty === null || difficulty === undefined || difficulty === '') {
-    return null
-  }
-
-  return String(difficulty)
-}
-
-function CurrentProb() {
+function CurrentProb({ user }: Props) {
   const [problemType, setProblemType] = useState<ProblemType>('Computational')
   const [problems, setProblems] = useState<Problem[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [answerText, setAnswerText] = useState('')
+  const [workText, setWorkText] = useState('')
+  const [workOpen, setWorkOpen] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [submissionMessage, setSubmissionMessage] = useState('')
+  const [message, setMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const controller = new AbortController()
-
-    async function loadCurrentProblems() {
-      try {
-        setIsLoading(true)
-        const response = await fetch('/api/problems/current', {
-          signal: controller.signal,
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to load current problems.')
-        }
-
-        const data = (await response.json()) as { problems?: Problem[] }
-        setProblems(data.problems ?? [])
-      } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
-          return
-        }
-
-        setProblems([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    void loadCurrentProblems()
-
+    apiRequest<{ problems: Problem[] }>('/problems/current', { signal: controller.signal })
+      .then((data) => setProblems(data.problems))
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setLoadError(error instanceof Error ? error.message : 'Could not load the current problems.')
+      })
+      .finally(() => setIsLoading(false))
     return () => controller.abort()
   }, [])
 
-  const activeProblem = problems.find(
-    (problem) => problem.is_current && getProblemTypeLabel(problem.problem_type) === problemType
-  )
+  const activeProblem = problems.find((problem) => getProblemType(problem.problem_type) === problemType)
+  const isProof = problemType === 'Proof-based'
 
-  const releaseDate = formatDate(activeProblem?.release_date)
-  const dueDate = formatDate(activeProblem?.due_date)
-  const difficulty = formatDifficulty(activeProblem?.difficulty_rating)
-  const hintCount = Array.isArray(activeProblem?.hints)
-    ? activeProblem?.hints.length
-    : typeof activeProblem?.hints === 'string'
-      ? Number.parseInt(activeProblem.hints, 10)
-      : null
-
-  function handleTextSubmit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent) {
     event.preventDefault()
-
-    if (!answerText.trim()) {
-      setSubmissionMessage('Please enter an answer before submitting.')
+    if (!activeProblem || !user) return
+    if (!isProof && !answerText.trim()) {
+      setMessage('Enter a short answer first.')
+      return
+    }
+    if (isProof && !workText.trim() && !selectedFile) {
+      setMessage('Type your proof or attach a proof file.')
       return
     }
 
-    setSubmissionMessage(`Text answer ready to submit: ${answerText.trim()}`)
+    const formData = new FormData()
+    formData.set('problem_id', String(activeProblem.id))
+    formData.set('answer_text', answerText.trim())
+    formData.set('work_text', workText.trim())
+    if (selectedFile) formData.set('file', selectedFile)
+
+    setSubmitting(true)
+    setMessage('')
+    try {
+      const data = await apiRequest<{ message: string }>('/submissions', { method: 'POST', body: formData }, user)
+      setMessage(data.message)
+      setAnswerText('')
+      setWorkText('')
+      setWorkOpen(false)
+      setSelectedFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Submission failed.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  function handleUploadClick() {
-    fileInputRef.current?.click()
-  }
-
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+  function chooseFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null
     setSelectedFile(file)
-    setSubmissionMessage(file ? `Selected file: ${file.name}` : '')
-  }
-
-  function handleCancelUpload() {
-    setSelectedFile(null)
-    setSubmissionMessage('')
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }
-
-  function handleConfirmUpload() {
-    if (!selectedFile) {
-      setSubmissionMessage('Choose a file before uploading your answer.')
-      return
-    }
-
-    setSubmissionMessage(`Upload ready to submit: ${selectedFile.name}`)
+    setMessage(file && file.size > 5 * 1024 * 1024 ? 'Files must be 5 MB or smaller.' : '')
   }
 
   return (
     <MathJaxContext config={mathJaxConfig} version={4}>
-      <div className="current-prob-container">
+      <section className="current-prob-container" aria-label="Current problem">
         <div className="current-prob-header">
-          <button
-            className={`tab ${problemType === 'Computational' ? 'active' : ''}`}
-            onClick={() => setProblemType('Computational')}
-            type="button"
-          >
-            Computational
-          </button>
-          <button
-            className={`tab ${problemType === 'Proof-based' ? 'active' : ''}`}
-            onClick={() => setProblemType('Proof-based')}
-            type="button"
-          >
-            Proof-based
-          </button>
+          {(['Computational', 'Proof-based'] as ProblemType[]).map((type) => (
+            <button
+              key={type}
+              className={`tab ${problemType === type ? 'active' : ''}`}
+              onClick={() => {
+                setProblemType(type)
+                setAnswerText('')
+                setWorkText('')
+                setWorkOpen(false)
+                setSelectedFile(null)
+                setMessage('')
+              }}
+              type="button"
+            >
+              {type}
+            </button>
+          ))}
         </div>
         <div className="current-prob-content">
-          {isLoading ? (
-            <div className="problem-state">Loading current problem...</div>
-          ) : activeProblem ? (
-            <div className="problem-card">
-              <h2>{activeProblem.title}</h2>
+          {isLoading ? <div className="problem-state">Loading current problem…</div> : null}
+          {!isLoading && loadError ? <div className="problem-state error-text">{loadError}</div> : null}
+          {!isLoading && !loadError && !activeProblem ? (
+            <div className="problem-state">No current {problemType.toLowerCase()} problem has been posted yet.</div>
+          ) : null}
+          {activeProblem ? (
+            <article className="problem-card">
+              <div className="problem-title-row">
+                <h2>{activeProblem.title}</h2>
+                {activeProblem.difficulty_rating ? <span className={`difficulty-pill ${difficultyClass(activeProblem.difficulty_rating)}`}>Difficulty {activeProblem.difficulty_rating}/10</span> : null}
+              </div>
               <div className="problem-meta">
-                {difficulty && <span>Difficulty: {difficulty}</span>}
-                {activeProblem.proposed_by && <span>Suggested by: {activeProblem.proposed_by}</span>}
-                {releaseDate && <span>Released: {releaseDate}</span>}
-                {dueDate && <span>Due: {dueDate}</span>}
-                {typeof hintCount === 'number' && !Number.isNaN(hintCount) && (
-                  <span>Hints: {hintCount}</span>
-                )}
+                <span><strong>Due</strong> {formatDueTime(activeProblem.due_at, activeProblem.due_date)}</span>
               </div>
-              <div className="problem-statement">
-                <MathJax dynamic>{activeProblem.statement_latex}</MathJax>
-              </div>
-              <div className="submit-area">
-                <form className="answer-row" onSubmit={handleTextSubmit}>
-                  <input
-                    type="text"
-                    value={answerText}
-                    onChange={(event) => setAnswerText(event.target.value)}
-                    placeholder={
-                      problemType === 'Computational'
-                        ? 'Enter computational answer'
-                        : 'Enter your answer'
-                    }
-                  />
-                  <button type="submit" className="submit-action primary">
-                    Submit Text
-                  </button>
-                <button type="button" className="submit-action secondary upload-action" onClick={handleUploadClick}>
-                  Upload File
-                </button>
-              </form>
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden-file-input"
-                onChange={handleFileChange}
-              />
-              {selectedFile && (
-                <div className="upload-confirm-row">
-                  <p className="file-name">Selected: {selectedFile.name}</p>
-                  <div className="upload-confirm-actions">
-                    <button
-                      type="button"
-                      className="submit-action confirm-button"
-                      onClick={handleConfirmUpload}
-                      aria-label="Confirm upload"
-                      title="Confirm upload"
-                    >
-                      ✓
-                    </button>
-                    <button
-                      type="button"
-                      className="submit-action cancel-button"
-                      onClick={handleCancelUpload}
-                      aria-label="Cancel upload"
-                      title="Cancel upload"
-                    >
-                      ×
+              <div className="problem-statement"><MathJax dynamic>{activeProblem.statement_latex}</MathJax></div>
+              {activeProblem.proposed_by ? <p className="proposer-thanks">Thank you to {activeProblem.proposed_by} for suggesting this problem.</p> : null}
+
+              <section className="solution-section">
+                <h3>Your solution</h3>
+                {user ? (
+                <form className="submit-area" onSubmit={submit}>
+                  {!isProof ? (
+                    <>
+                      <input aria-label="Short answer" id="answer" value={answerText} onChange={(event) => setAnswerText(event.target.value)} placeholder="Enter your final answer. LaTeX is supported." required />
+                      {answerText ? <div className="response-preview"><strong>Answer preview</strong><MathJax dynamic>{answerText}</MathJax></div> : null}
+                    </>
+                  ) : null}
+                  <div className="work-choice">
+                    <button className="work-toggle" type="button" onClick={() => setWorkOpen((current) => !current)}>{workOpen ? 'Hide typed work' : isProof ? 'Type proof' : 'Type work'}</button>
+                    <span>or</span>
+                    <input ref={fileInputRef} className="file-input" id="answer-file" type="file" onChange={chooseFile} />
+                    <label className="file-button" htmlFor="answer-file">Upload {isProof ? 'proof' : 'work'}</label>
+                  </div>
+                  {workOpen ? <div className="expanded-work">
+                    <label htmlFor="work-text">{isProof ? 'Written proof' : 'Comment / shown work'}
+                      <textarea id="work-text" value={workText} onChange={(event) => setWorkText(event.target.value)} placeholder={isProof ? 'Type your proof here. LaTeX is supported.' : 'Explain your approach or calculations. LaTeX is supported.'} rows={isProof ? 8 : 5} autoFocus />
+                    </label>
+                    {workText ? <div className="response-preview"><strong>Work preview</strong><MathJax dynamic>{workText}</MathJax></div> : null}
+                  </div> : null}
+                  <div className="answer-actions">
+                    {selectedFile ? <span>Attached: {selectedFile.name}</span> : null}
+                    {selectedFile ? <button className="clear-file" type="button" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = '' }}>Remove</button> : null}
+                    <button type="submit" className="submit-action" disabled={submitting || Boolean(selectedFile && selectedFile.size > 5 * 1024 * 1024)}>
+                      {submitting ? 'Submitting…' : 'Submit solution'}
                     </button>
                   </div>
-                </div>
+                  {message ? <p className="submission-message" role="status">{message}</p> : null}
+                </form>
+              ) : (
+                <p className="login-prompt"><Link to="/login">Log in</Link> or <Link to="/signup">create an account</Link> to submit a solution.</p>
               )}
-              {submissionMessage && <p className="submission-message">{submissionMessage}</p>}
-              </div>
-            </div>
-          ) : (
-            <div className="problem-state">
-              No current {problemType.toLowerCase()} problem has been posted yet.
-            </div>
-          )}
+              </section>
+            </article>
+          ) : null}
         </div>
-      </div>
+      </section>
     </MathJaxContext>
   )
 }

@@ -29,10 +29,10 @@ function AuthLinks({ user, setUser }: AuthLinksProps) {
   if (user) {
     return (
       <div className="auth-links">
-        <button onClick={handleProfileClick} className="auth-button">
+        <button type="button" onClick={handleProfileClick} className="auth-button">
           Profile
         </button>
-        <button onClick={handleLogoutClick} className="auth-button">
+        <button type="button" onClick={handleLogoutClick} className="auth-button">
           Logout
         </button>
       </div>
@@ -41,10 +41,10 @@ function AuthLinks({ user, setUser }: AuthLinksProps) {
 
   return (
     <div className="auth-links">
-      <button onClick={handleSignupClick} className="auth-button">
+      <button type="button" onClick={handleSignupClick} className="auth-button">
         Signup
       </button>
-      <button onClick={handleLoginClick} className="auth-button">
+      <button type="button" onClick={handleLoginClick} className="auth-button">
         Login
       </button>
     </div>

@@ -140,3 +140,24 @@
 .login-form-container form button:hover {
   background-color: #b89d6a;
 }
+
+.auth-help-links,
+.auth-success {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+    text-align: center;
+}
+
+.signup-form-container form .auth-success p,
+.login-form-container form .auth-success p {
+    margin: 0;
+    color: #285d26;
+}
+
+.auth-help-links a,
+.auth-success a {
+    color: #70501f;
+    font-weight: 700;
+    text-decoration: underline;
+}

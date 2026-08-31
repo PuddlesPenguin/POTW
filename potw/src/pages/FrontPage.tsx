@@ -13,9 +13,9 @@ function FrontPage({ user, setUser }: Props) {
     <div className="front-page">
       <NavBar user={user} setUser={setUser} />
       <div className="front-page-hero">
-        <h1>This weeks Problem(s)!</h1>
+        <h1>This week&apos;s problems!</h1>
       </div>
-      <CurrentProb />
+      <CurrentProb user={user} />
     </div>
   )
 }

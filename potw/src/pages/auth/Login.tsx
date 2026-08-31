@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import NavBar from '../../components/navbar/NavBar'
 import { loginUser } from '../../lib/auth'
 import type { SetUser, UserState } from '../../types/user'
@@ -54,6 +54,8 @@ function Login({ user, setUser }: Props) {
               className="form-control"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="username"
             />
             <label htmlFor="password" className="form-label">
               Password
@@ -65,11 +67,17 @@ function Login({ user, setUser }: Props) {
               className="form-control"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
             />
             {error ? <p>{error}</p> : null}
             <button className="authButton" type="submit" disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
             </button>
+            <div className="auth-help-links">
+              <Link to="/forgot-password">Forgot password?</Link>
+              <Link to="/verify-email">Resend verification email</Link>
+            </div>
           </form>
         </div>
       </div>

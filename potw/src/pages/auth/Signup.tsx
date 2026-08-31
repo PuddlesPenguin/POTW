@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import NavBar from '../../components/navbar/NavBar'
 import { registerUser } from '../../lib/auth'
 import type { SetUser, UserState } from '../../types/user'
@@ -11,21 +11,22 @@ type Props = {
 }
 
 function Signup({ user, setUser }: Props) {
-  const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState('')
+  const [developmentUrl, setDevelopmentUrl] = useState('')
 
   const handleSubmit = async () => {
     setLoading(true)
     setError('')
 
     try {
-      const newUser = await registerUser(username, email, password)
-      setUser(newUser)
-      navigate('/')
+      const result = await registerUser(username, email, password)
+      setSuccess(result.message)
+      setDevelopmentUrl(result.development_url ?? '')
     } catch (signupError) {
       setError(signupError instanceof Error ? signupError.message : 'Signup failed.')
     } finally {
@@ -45,6 +46,13 @@ function Signup({ user, setUser }: Props) {
           }}
         >
           <h1>Signup</h1>
+          {success ? (
+            <div className="auth-success" role="status">
+              <p>{success}</p>
+              {developmentUrl ? <a href={developmentUrl}>Open the development verification link</a> : null}
+              <Link to="/login">Return to login</Link>
+            </div>
+          ) : <>
           <label htmlFor="username" className="form-label">
             Username
           </label>
@@ -55,6 +63,10 @@ function Signup({ user, setUser }: Props) {
             className="form-control"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            required
+            minLength={3}
+            maxLength={30}
+            autoComplete="username"
           />
           <label htmlFor="email" className="form-label">
             Email
@@ -66,6 +78,8 @@ function Signup({ user, setUser }: Props) {
             className="form-control"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
           />
           <label htmlFor="password" className="form-label">
             Password
@@ -77,11 +91,15 @@ function Signup({ user, setUser }: Props) {
             className="form-control"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={8}
+            autoComplete="new-password"
           />
           {error ? <p>{error}</p> : null}
           <button className="authButton" type="submit" disabled={loading}>
             {loading ? 'Signing up...' : 'Signup'}
           </button>
+          </>}
         </form>
         </div>
       </div>

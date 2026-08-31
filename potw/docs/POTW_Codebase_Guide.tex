@@ -1,0 +1,985 @@
+\documentclass[11pt,oneside]{book}
+\usepackage[margin=0.85in]{geometry}
+\usepackage{fontspec}
+\setmainfont{Palatino Linotype}
+\setsansfont{Arial}
+\setmonofont{Consolas}[Scale=0.82]
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{bookmark}
+\usepackage{listings}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage[most]{tcolorbox}
+\usepackage{array}
+
+\definecolor{ink}{HTML}{332618}
+\definecolor{purduegold}{HTML}{CFB991}
+\definecolor{cream}{HTML}{F8F2E7}
+\definecolor{darkcream}{HTML}{E5D7BE}
+\definecolor{teal}{HTML}{183C3F}
+\definecolor{muted}{HTML}{6A5B43}
+\definecolor{codebg}{HTML}{F5F1E8}
+\definecolor{codecomment}{HTML}{5B7A57}
+\definecolor{codekeyword}{HTML}{6A3E70}
+\definecolor{codestring}{HTML}{8A4A2C}
+\definecolor{linkblue}{HTML}{315B78}
+
+\hypersetup{colorlinks=true,linkcolor=teal,urlcolor=linkblue,citecolor=teal,pdftitle={Purdue Math Club POTW Codebase Guide},pdfauthor={Purdue Math Club}}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Purdue Math Club POTW}
+\fancyhead[R]{\small Codebase Guide}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.3pt}
+\titleformat{\chapter}[display]{\sffamily\bfseries\color{teal}}{\filleft\Large\chaptername\ \thechapter}{1ex}{\Huge}
+\titleformat{\section}{\sffamily\Large\bfseries\color{teal}}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\sffamily\large\bfseries\color{ink}}{\thesubsection}{0.7em}{}
+\setlist{itemsep=0.25em,topsep=0.5em}
+\renewcommand{\arraystretch}{1.2}
+
+\lstdefinelanguage{JavaScriptPlus}{
+  morekeywords={async,await,const,let,import,from,export,return,try,catch,finally,throw,new,typeof,instanceof},
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]',
+  morestring=[b]",
+  sensitive=true
+}
+\lstset{
+  language=JavaScriptPlus,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{codekeyword}\bfseries,
+  stringstyle=\color{codestring},
+  commentstyle=\color{codecomment}\itshape,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{darkcream},
+  framerule=0.4pt,
+  breaklines=true,
+  breakatwhitespace=false,
+  showstringspaces=false,
+  columns=fullflexible,
+  keepspaces=true,
+  tabsize=2,
+  numbers=left,
+  numberstyle=\tiny\color{muted},
+  xleftmargin=1.5em,
+  framexleftmargin=1em,
+  aboveskip=0.8em,
+  belowskip=0.8em
+}
+
+\newtcolorbox{plainbox}[1]{colback=cream,colframe=purduegold,boxrule=0.6pt,arc=2pt,title=\textbf{#1},coltitle=ink,fonttitle=\sffamily}
+\newtcolorbox{warningbox}{colback=red!3,colframe=red!35!black,boxrule=0.6pt,arc=2pt,title=\textbf{Important},coltitle=red!35!black,fonttitle=\sffamily}
+\newtcolorbox{mentalbox}{colback=blue!3,colframe=linkblue,boxrule=0.6pt,arc=2pt,title=\textbf{Beginner mental model},coltitle=linkblue,fonttitle=\sffamily}
+\newcommand{\file}[1]{\texttt{#1}}
+\newcommand{\route}[1]{\texttt{#1}}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\begin{document}
+
+\begin{titlepage}
+  \pagecolor{cream}
+  \color{ink}
+  \centering
+  \vspace*{1.2in}
+  {\sffamily\bfseries\fontsize{38}{44}\selectfont Purdue Math Club\\[0.2em]Problem of the Week\par}
+  \vspace{0.45in}
+  {\color{purduegold}\rule{0.72\textwidth}{3pt}\par}
+  \vspace{0.45in}
+  {\sffamily\bfseries\fontsize{27}{32}\selectfont Beginner's Codebase Guide\par}
+  \vspace{0.25in}
+  {\Large How the React frontend, Express backend, PostgreSQL database, authentication, grading, and scheduling fit together\par}
+  \vfill
+  \begin{tcolorbox}[width=0.78\textwidth,colback=white,colframe=purduegold,boxrule=0.7pt,arc=2pt]
+  \centering This guide assumes you know a little programming, but do not yet know React, Node.js, Express, middleware, JSON Web Tokens, or relational databases.
+  \end{tcolorbox}
+  \vfill
+  {\large Generated from the codebase on August 31, 2026\par}
+  \vspace{0.6in}
+\end{titlepage}
+\nopagecolor
+
+\frontmatter
+\tableofcontents
+
+\chapter*{How to use this guide}
+\addcontentsline{toc}{chapter}{How to use this guide}
+Read Chapters 1--4 in order if web development is new to you. After that, jump to the feature you need. Code excerpts are shortened to emphasize the idea; the filename above each excerpt tells you where to find the complete implementation.
+
+Three words appear constantly:
+\begin{description}
+  \item[Frontend] Code that runs in the visitor's browser and draws the interface. In this project, that is React and CSS inside \file{src/}.
+  \item[Backend] Code that runs on the server, receives HTTP requests, enforces rules, and talks to the database. In this project, that is Node.js and Express inside \file{server/}.
+  \item[Database] Durable structured storage. PostgreSQL stores users, problems, submissions, seasons, proposals, and hint requests.
+\end{description}
+
+\begin{warningbox}
+Never put database passwords, SMTP passwords, or \code{JWT\_SECRET} values into frontend code. Browser code is downloaded by every visitor. Secrets belong in the server's uncommitted \file{.env} file or a production secret manager.
+\end{warningbox}
+
+\mainmatter
+
+\chapter{The system in one picture}
+
+\section{The three running pieces}
+The app is not one program. During development, three pieces cooperate:
+
+\begin{center}
+\begin{tabularx}{0.94\textwidth}{>{\bfseries\sffamily}p{0.2\textwidth} X p{0.18\textwidth}}
+\toprule
+Piece & Job & Development address \\
+\midrule
+React + Vite & Draw pages, collect form input, call the API, and remember the logged-in user in the browser. & \url{http://localhost:5173} \\
+Express API & Validate requests, authenticate users, apply permissions, run business logic, and return JSON. & \url{http://localhost:3000} \\
+PostgreSQL & Persist records after the browser and server stop. & Database named \code{potw} \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{mentalbox}
+Think of React as the receptionist, Express as the office staff, and PostgreSQL as the filing room. The receptionist never walks into the filing room. It gives a request to the office staff; the staff checks permissions, reads or updates a file, and returns an answer.
+\end{mentalbox}
+
+\section{A request from click to database and back}
+When a solver presses ``Submit solution,'' this happens:
+
+\begin{enumerate}
+  \item React's submit handler prevents the browser's normal page reload.
+  \item React builds a \code{FormData} object containing the problem ID, answer, typed work, and optional file.
+  \item \file{src/lib/api.ts} sends an HTTP \code{POST} request to \route{/api/submissions}. It adds the user's token to the \code{Authorization} header.
+  \item Vite proxies \route{/api} to port 3000 during development.
+  \item Express runs middleware in order: request parsing, rate limiting, authentication, file parsing, then the route handler.
+  \item The route validates the problem and response, then issues a parameterized SQL \code{INSERT} through the PostgreSQL connection pool.
+  \item PostgreSQL saves the row and returns its generated ID and timestamp.
+  \item Express sends JSON such as \code{\{"message":"Your answer was submitted."\}}.
+  \item React updates its state, causing the interface to render the success message.
+\end{enumerate}
+
+That pattern---event, request, middleware, SQL, JSON, state update---is the central loop of the entire application.
+
+\chapter{Repository map}
+
+\section{Top-level structure}
+\begin{lstlisting}[language={},numbers=none]
+potw/
+|-- db/                    PostgreSQL schema and migrations
+|-- docs/                  This guide (.tex and .pdf)
+|-- public/                Files copied directly into the frontend build
+|-- server/                Node/Express backend
+|   |-- auth.js            JWT creation and permission middleware
+|   |-- db.js              PostgreSQL connection pool
+|   |-- email.js           SMTP verification/reset messages
+|   `-- index.js           API setup and all route handlers
+|-- src/                   React frontend
+|   |-- components/        Reusable UI pieces
+|   |-- lib/               Shared API/auth request helpers
+|   |-- pages/             One main component per screen
+|   |-- types/             Shared TypeScript data shapes
+|   |-- App.tsx            Browser routes and global user state
+|   `-- main.tsx           Frontend entry point
+|-- .env                   Local secrets; ignored by Git
+|-- .env.example           Safe configuration template
+|-- package.json           Dependencies and commands
+|-- vite.config.ts         Frontend build and development proxy
+`-- README.md              Setup quick reference
+\end{lstlisting}
+
+\section{Important frontend files}
+\begin{longtable}{p{0.35\textwidth} p{0.58\textwidth}}
+\toprule
+File & Responsibility \\
+\midrule
+\endhead
+\file{src/main.tsx} & Finds the HTML element named \code{root} and mounts the React application. \\
+\file{src/App.tsx} & Defines URL-to-page mappings and owns the logged-in \code{user} state. \\
+\file{src/lib/api.ts} & Central wrapper around browser \code{fetch}; adds headers and turns API errors into JavaScript errors. \\
+\file{src/lib/auth.ts} & Small functions for login, signup, verification, and password reset. \\
+\file{src/components/problem-widget/CurrentProb.tsx} & Loads current problems, renders MathJax, and submits answers/files. \\
+\file{src/pages/RequestHint.tsx} & Separate hint-request form with selectable problem buttons and a LaTeX preview. \\
+\file{src/pages/ViewProfile.tsx} & Shows private submission history, scores, feedback, response editing, and anonymous-mode preference. \\
+\file{src/pages/Admin.tsx} & Admin tabs for grading, problem scheduling, proposals, seasons, and user roles. \\
+\file{src/pages/Leaderboard.tsx} & Loads seasons and spreadsheet-style scores; refreshes every 15 seconds. \\
+\file{src/pages/auth/*.tsx} & Signup, login, verification, forgot-password, and reset-password screens. \\
+\file{src/**/*.css} & The cream, tan, and dark visual style. CSS changes appearance; it does not store data. \\
+\bottomrule
+\end{longtable}
+
+\section{Important backend and database files}
+\begin{longtable}{p{0.35\textwidth} p{0.58\textwidth}}
+\toprule
+File & Responsibility \\
+\midrule
+\endhead
+\file{server/index.js} & Creates Express, installs middleware, declares every API route, validates input, and runs SQL. \\
+\file{server/auth.js} & Signs JWTs and defines \code{requireAuth}, \code{requireAdmin}, and \code{requireSuperuser}. \\
+\file{server/db.js} & Creates one reusable PostgreSQL connection pool. \\
+\file{server/email.js} & Configures Nodemailer once and sends verification/reset links through SMTP. \\
+\file{db/001\_schema.sql} & Complete schema for a new database. \\
+\file{db/002\_sample\_problems.sql} & Optional starter problem records. \\
+\file{db/003--008\_*.sql} & Incremental upgrades for an existing database. \\
+\bottomrule
+\end{longtable}
+
+\chapter{JavaScript, TypeScript, Node, and React}
+
+\section{JavaScript versus TypeScript}
+JavaScript is the language that browsers and Node.js execute. TypeScript adds compile-time descriptions of values. Files ending in \file{.tsx} may contain TypeScript plus React's HTML-like JSX syntax. The browser never receives TypeScript directly; Vite compiles it into JavaScript.
+
+\begin{lstlisting}[title={src/types/user.ts --- a TypeScript type}]
+export type User = {
+  id: number
+  username: string
+  email: string
+  is_admin?: boolean
+  is_superuser?: boolean
+  leaderboard_hidden?: boolean
+  token: string
+}
+\end{lstlisting}
+
+This does not create a database table or runtime object. It tells the TypeScript checker, ``whenever we call something a \code{User}, it should have these fields.'' The question mark means a field may be absent.
+
+\section{What Node.js is}
+Node.js is a program that executes JavaScript outside a web browser. That makes JavaScript usable for a server. It provides access to networking, environment variables, files, and installed packages. The line below starts the backend with Node:
+
+\begin{lstlisting}[language={},numbers=none]
+node server/index.js
+\end{lstlisting}
+
+Because \file{package.json} contains \code{"type": "module"}, the backend uses modern \code{import}/\code{export} syntax.
+
+\section{Asynchronous code: promises, async, and await}
+Database queries and network requests take time. JavaScript does not freeze the whole server while waiting. These operations return a \emph{Promise}, an object representing a future result. Marking a function \code{async} lets it use \code{await}:
+
+\begin{lstlisting}
+app.get('/api/health', async (_req, res, next) => {
+  try {
+    await query('SELECT 1')
+    res.json({ status: 'ok' })
+  } catch (error) {
+    next(error)
+  }
+})
+\end{lstlisting}
+
+\code{await} pauses only this request handler until PostgreSQL responds. The server can continue handling other requests. If the query fails, \code{catch} passes the error to Express's final error middleware.
+
+\section{What React is}
+React lets the interface be described as functions of state. A React \emph{component} is usually a function that returns JSX:
+
+\begin{lstlisting}
+function FrontPage({ user, setUser }: Props) {
+  return (
+    <div className="front-page">
+      <NavBar user={user} setUser={setUser} />
+      <h1>This week's problems!</h1>
+      <CurrentProb user={user} />
+    </div>
+  )
+}
+\end{lstlisting}
+
+JSX resembles HTML, but it is JavaScript syntax transformed during the build. Braces embed JavaScript expressions. Component names begin with capital letters; lowercase names such as \code{div} represent browser elements.
+
+\subsection{Props}
+Props are inputs passed from a parent component to a child. Above, \code{FrontPage} gives the current \code{user} to \code{CurrentProb}. Props flow downward. A child should not directly mutate a prop.
+
+\subsection{State}
+State is data React remembers between renders:
+
+\begin{lstlisting}
+const [answerText, setAnswerText] = useState('')
+
+<input
+  value={answerText}
+  onChange={(event) => setAnswerText(event.target.value)}
+/>
+\end{lstlisting}
+
+\code{answerText} is the current value. \code{setAnswerText} changes it and tells React to render again. The input is called \emph{controlled} because React state is its source of truth.
+
+\subsection{Effects}
+An effect runs code because a component appeared or a dependency changed. It is the correct place to load API data or install a timer:
+
+\begin{lstlisting}
+useEffect(() => {
+  const refresh = () => apiRequest('/leaderboard')
+  void refresh()
+  const interval = window.setInterval(refresh, 15000)
+  return () => window.clearInterval(interval)
+}, [selectedSeasonId])
+\end{lstlisting}
+
+The dependency array means the effect restarts when \code{selectedSeasonId} changes. The returned cleanup function prevents an abandoned timer from continuing after the component disappears.
+
+\begin{warningbox}
+React development mode uses \code{StrictMode}, which may run effect setup/cleanup twice to expose unsafe effects. This is intentional and does not happen the same way in a production build.
+\end{warningbox}
+
+\chapter{Frontend architecture}
+
+\section{Starting React}
+The browser initially receives \file{index.html}, which contains an empty root element. \file{src/main.tsx} attaches React to it:
+
+\begin{lstlisting}[title={src/main.tsx}]
+const container = document.getElementById('root')!
+createRoot(container).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+\end{lstlisting}
+
+The exclamation mark tells TypeScript that the element definitely exists. If \file{index.html} stopped containing \code{id="root"}, that assertion would be wrong and startup would fail.
+
+\section{Routing and global login state}
+\file{App.tsx} owns the logged-in user because many pages need it. It initializes from browser \code{localStorage}, then keeps storage synchronized:
+
+\begin{lstlisting}[title={src/App.tsx, shortened}]
+const [user, setUser] = useState<UserState>(() => {
+  const storedUser = localStorage.getItem('potw-user')
+  if (!storedUser) return null
+  const parsed = JSON.parse(storedUser)
+  return parsed?.token ? parsed : null
+})
+
+useEffect(() => {
+  if (user) localStorage.setItem('potw-user', JSON.stringify(user))
+  else localStorage.removeItem('potw-user')
+}, [user])
+\end{lstlisting}
+
+React Router selects a page without reloading the whole site:
+
+\begin{lstlisting}
+<Routes>
+  <Route path="/" element={<FrontPage user={user} setUser={setUser} />} />
+  <Route path="/profile" element={<ViewProfile user={user} setUser={setUser} />} />
+  <Route path="/admin" element={<Admin user={user} setUser={setUser} />} />
+</Routes>
+\end{lstlisting}
+
+This is a single-page application: navigation changes components and the address bar, but usually does not request a new HTML document.
+
+\section{The shared API helper}
+Every frontend request should normally go through \file{src/lib/api.ts}:
+
+\begin{lstlisting}[title={src/lib/api.ts, shortened}]
+export async function apiRequest(path, options = {}, user) {
+  const headers = new Headers(options.headers)
+  if (user?.token) {
+    headers.set('Authorization', `Bearer ${user.token}`)
+  }
+  if (options.body && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
+
+  const response = await fetch(`/api${path}`, { ...options, headers })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data.message || 'Something went wrong.')
+  return data
+}
+\end{lstlisting}
+
+Centralizing this prevents every page from reimplementing token headers and error handling. Notice that it does \emph{not} manually set \code{Content-Type} for \code{FormData}; the browser must generate the multipart boundary itself.
+
+\section{Development proxy}
+Frontend code requests \route{/api/...} from port 5173. \file{vite.config.ts} forwards those requests to Express:
+
+\begin{lstlisting}[title={vite.config.ts}]
+server: {
+  proxy: {
+    '/api': 'http://localhost:3000',
+  },
+}
+\end{lstlisting}
+
+Without this proxy, development requests would hit Vite instead of Express. In production, the host should route \route{/api} to the backend, or the frontend should be built with \code{VITE\_API\_URL} pointing at the API origin.
+
+\section{Pages and reusable components}
+The navbar and current-problem widget are components because multiple pages or concerns use them. The page components organize full screens. This division is practical rather than magical: split a component when it has a clear job, is reused, or has grown difficult to read.
+
+The current-problem component demonstrates most common React patterns:
+\begin{itemize}
+  \item \code{useState} stores loaded problems, form values, expanded areas, files, and messages.
+  \item \code{useEffect} loads public problem data once.
+  \item Derived variables choose the active computational or proof problem.
+  \item Event handlers validate and submit forms.
+  \item Conditional JSX shows login prompts, previews, files, or errors.
+  \item MathJax turns LaTeX strings into rendered mathematics.
+\end{itemize}
+
+\chapter{Backend architecture and middleware}
+
+\section{What Express adds to Node}
+Node can create an HTTP server directly, but Express supplies routing and middleware conventions. A route says, ``when this HTTP method and path arrive, run this function.''
+
+\begin{lstlisting}
+app.get('/api/seasons', async (_req, res, next) => {
+  try {
+    const result = await query(
+      'SELECT id, name, start_date, end_date, is_active FROM seasons'
+    )
+    res.json({ seasons: result.rows })
+  } catch (error) {
+    next(error)
+  }
+})
+\end{lstlisting}
+
+\code{req} is the incoming request. \code{res} constructs the response. \code{next} hands control to the next matching middleware, especially for errors.
+
+\section{Middleware without the jargon}
+Middleware is a function placed in the request pipeline. It can inspect/change the request, stop it by sending a response, or call \code{next()} to continue.
+
+\begin{mentalbox}
+Imagine airport checkpoints. The passenger is the request. One checkpoint checks the ticket, another scans luggage, and the gate agent performs the final action. Any checkpoint can reject the passenger; otherwise it passes the passenger forward. Middleware is simply those checkpoints written as functions.
+\end{mentalbox}
+
+The order matters. The app installs broad middleware first:
+
+\begin{lstlisting}[title={server/index.js, simplified}]
+app.use(cors({ origin: process.env.FRONTEND_URL }))
+app.use(express.json({ limit: '100kb' }))
+app.use('/api', rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }))
+
+app.post(
+  '/api/submissions',
+  requireAuth,
+  upload.single('file'),
+  async (req, res, next) => { /* final route logic */ },
+)
+\end{lstlisting}
+
+For the submission route, the order is:
+\begin{enumerate}
+  \item global CORS and request-rate rules;
+  \item \code{requireAuth}, which checks the token and sets \code{req.user};
+  \item Multer, which parses one uploaded file into \code{req.file};
+  \item the final handler, which validates and inserts the submission.
+\end{enumerate}
+
+\section{Common middleware in this project}
+\begin{description}
+  \item[\code{cors}] Permits the configured frontend origin to call the API from a browser. It is a browser access rule, not authentication.
+  \item[\code{express.json}] Parses a JSON request body into \code{req.body}. It also rejects JSON above 100 KB.
+  \item[\code{express-rate-limit}] Counts requests per client IP over a window and returns HTTP 429 after the limit.
+  \item[\code{requireAuth}] Validates a Bearer JWT, reloads the user from PostgreSQL, requires verified email, and assigns \code{req.user}.
+  \item[\code{requireAdmin}] Requires \code{req.user.is\_admin} or superuser status.
+  \item[\code{requireSuperuser}] Requires the single higher-privilege superuser flag.
+  \item[\code{multer}] Parses \code{multipart/form-data} and keeps one file in memory, with a 5 MB cap.
+  \item[error middleware] The final four-argument function converts known upload errors and unexpected exceptions into JSON responses.
+\end{description}
+
+\section{The final error handler}
+\begin{lstlisting}
+app.use((error, _req, res, _next) => {
+  if (error instanceof multer.MulterError) {
+    return res.status(400).json({ message: 'Files must be 5 MB or smaller.' })
+  }
+  console.error(error)
+  res.status(500).json({ message: 'The server could not complete that request.' })
+})
+\end{lstlisting}
+
+The four parameters tell Express this is error middleware. Detailed errors go to the server console; users receive a generic message so internal details and secrets are not leaked.
+
+\chapter{PostgreSQL and how data is stored}
+
+\section{Tables, rows, columns, and keys}
+A PostgreSQL table resembles a spreadsheet with stronger rules. A row is one record; a column is one field. A primary key uniquely identifies a row. A foreign key connects one table to another and prevents references to nonexistent records.
+
+For example, \code{submissions.user\_id} references \code{users.id}. The submission stores the numeric relationship instead of repeating a username. If the username changes, the relationship remains valid.
+
+\section{The connection pool}
+\begin{lstlisting}[title={server/db.js}]
+const { Pool } = pg
+
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
+    : false,
+})
+
+export function query(text, params) {
+  return pool.query(text, params)
+}
+\end{lstlisting}
+
+A pool reuses several database connections instead of opening a new connection for every request. \code{query} is a tiny convenience wrapper used throughout the server.
+
+\section{Why SQL parameters matter}
+Never insert user text into an SQL string with concatenation. Use placeholders:
+
+\begin{lstlisting}
+const result = await query(
+  'SELECT id, username FROM users WHERE LOWER(email) = LOWER($1)',
+  [email],
+)
+\end{lstlisting}
+
+PostgreSQL receives the command and value separately. It treats \code{email} as data, even if it contains quote marks or SQL-looking text. This is the primary defense against SQL injection.
+
+\section{Data dictionary}
+
+\subsection{\code{users}}
+One row per account.
+\begin{longtable}{p{0.30\textwidth} p{0.18\textwidth} p{0.44\textwidth}}
+\toprule
+Column & Type & Meaning \\
+\midrule
+\endhead
+\code{id} & integer & Generated primary key. \\
+\code{username}, \code{email} & text & Unique login identity; email is normalized to lowercase on registration. \\
+\code{password\_hash} & text & Bcrypt hash, never the original password. \\
+\code{is\_admin} & boolean & May grade and manage problems, proposals, hints, and seasons. \\
+\code{is\_superuser} & boolean & Includes admin ability and may grant/revoke admin status. \\
+\code{email\_verified} & boolean & Blocks login until true for newly registered accounts. \\
+\code{email\_verification\_*} & text/timestamps & SHA-256 token hash, expiry, and most recent send time. \\
+\code{password\_reset\_*} & text/timestamp & One-time reset token hash and expiry. \\
+\code{leaderboard\_hidden} & boolean & Excludes this user from public rankings without deleting scores. \\
+\code{created\_at} & timestamp & Account creation time. \\
+\bottomrule
+\end{longtable}
+
+\subsection{\code{problems}}
+One row per published, scheduled, draft, or archived problem.
+\begin{longtable}{p{0.30\textwidth} p{0.18\textwidth} p{0.44\textwidth}}
+\toprule
+Column & Type & Meaning \\
+\midrule
+\endhead
+\code{id}, \code{title} & integer/text & Identity and visible title. \\
+\code{statement\_latex} & text & Public problem body rendered by MathJax. \\
+\code{solution\_latex} & text & Private reference solution returned only through admin routes. \\
+\code{problem\_source}, \code{proposed\_by} & text & Optional credit information. \\
+\code{problem\_type} & text & Computational or proof-based; controls response UI and validation. \\
+\code{is\_current} & boolean & Candidate for the current-problem endpoint. \\
+\code{is\_archived} & boolean & Explicitly placed into the archive. \\
+\code{release\_date} & date & Calendar date used for seasons and ordering. \\
+\code{release\_at} & timestamptz & Exact public release instant. Admin input is interpreted in Indianapolis time. \\
+\code{due\_date} & date & Calendar date retained for compatibility and display fallback. \\
+\code{due\_at} & timestamptz & Exact instant when submissions and edits close. \\
+\code{hints} & text & Optional published LaTeX hint retained for future use. \\
+\code{hints\_enabled} & boolean & Stored published-hint setting; the current front page does not show hints. \\
+\code{allow\_hint\_requests} & boolean & Whether solvers can send private requests. \\
+\code{difficulty\_rating} & integer & Whole number from 1 through 10. \\
+\bottomrule
+\end{longtable}
+
+\subsection{\code{submissions}}
+One row per submitted attempt. Multiple attempts are allowed.
+\begin{longtable}{p{0.30\textwidth} p{0.18\textwidth} p{0.44\textwidth}}
+\toprule
+Column & Type & Meaning \\
+\midrule
+\endhead
+\code{user\_id}, \code{problem\_id} & integer & Foreign keys connecting the solver and problem. \\
+\code{answer\_text} & text & Computational short answer. \\
+\code{work\_text} & text & Optional shown work or typed proof, with LaTeX support in the UI. \\
+\code{file\_name}, \code{file\_type} & text & Original name and MIME type for an upload. \\
+\code{file\_data} & bytea & Raw uploaded file bytes stored inside PostgreSQL. \\
+\code{score} & integer & 0--5 points, with a database constraint. \\
+\code{is\_correct} & boolean & True only for a score of 5 in the grading route. \\
+\code{feedback} & text & Admin feedback visible in the solver's profile. \\
+\code{graded\_by}, \code{graded\_at} & integer/timestamp & Admin relationship and grading time; null means pending. \\
+\code{submitted\_at} & timestamp & Creation time, updated when the solver edits a response. \\
+\bottomrule
+\end{longtable}
+
+\subsection{\code{seasons}}
+Defines a leaderboard date range: name, start date, end date, and active flag. A constraint requires the end not to precede the start.
+
+\subsection{\code{problem\_proposals}}
+Stores solver-suggested title, statement LaTeX, optional solution/source/notes, status, creator, and time. Status is constrained to \code{pending}, \code{accepted}, or \code{declined}.
+
+\subsection{\code{hint\_requests}}
+Connects a user and problem with an optional message, time, and status. Status is constrained to \code{pending} or \code{resolved}.
+
+\section{Joins}
+A submission does not contain its problem title or username. A \code{JOIN} combines related rows for display:
+
+\begin{lstlisting}[language=SQL]
+SELECT s.id, s.answer_text, s.score, s.feedback,
+       p.title, p.problem_type
+FROM submissions s
+JOIN problems p ON p.id = s.problem_id
+WHERE s.user_id = $1
+ORDER BY s.submitted_at DESC;
+\end{lstlisting}
+
+Aliases \code{s} and \code{p} shorten table names. The \code{ON} condition explains how rows correspond.
+
+\section{Schema versus migrations}
+\file{001\_schema.sql} describes a fresh database. Later numbered files modify databases created before new features existed. Apply them in numeric order. Migrations use patterns such as \code{ADD COLUMN IF NOT EXISTS} so an already-upgraded local database does not fail immediately.
+
+Do not casually edit an old migration after production has used it. Add a new numbered migration so every environment can move from the same old state to the same new state.
+
+\chapter{Authentication, verification, and permissions}
+
+\section{Password storage}
+The backend hashes passwords with bcrypt at cost 12:
+
+\begin{lstlisting}
+const passwordHash = await bcrypt.hash(password, 12)
+\end{lstlisting}
+
+Login uses \code{bcrypt.compare}. Hashing is intentionally expensive, which slows password guessing. A hash is not encryption: there is no decryption key and the original password should never be recoverable.
+
+\section{Email verification flow}
+\begin{enumerate}
+  \item Registration validates username, email, and password.
+  \item The server creates 32 cryptographically random bytes and represents them as 64 hexadecimal characters.
+  \item It stores only \code{SHA-256(token)}, with a 24-hour expiry.
+  \item Nodemailer sends the raw token inside a frontend link.
+  \item The verification page posts the token back to the API.
+  \item The server hashes the supplied token and matches the stored hash and expiry.
+  \item A match sets \code{email\_verified = TRUE} and deletes verification token fields.
+\end{enumerate}
+
+Storing only the hash means a database reader cannot directly use an unexpired token. In development without SMTP, the server prints and returns a test URL. In production, missing SMTP is an error and test URLs are not exposed.
+
+\section{Password reset flow}
+Forgot-password always returns the same public message whether an email exists. This reduces account enumeration. For an existing account it creates a one-hour hashed token and emails the raw link. A valid reset changes the bcrypt hash, verifies the email (because possession of the inbox was demonstrated), and clears the token.
+
+\section{JWT login sessions}
+After a verified login, \file{server/auth.js} signs a JSON Web Token:
+
+\begin{lstlisting}[title={server/auth.js, shortened}]
+export function createToken(user) {
+  return jwt.sign(
+    { sub: user.id, username: user.username },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' },
+  )
+}
+\end{lstlisting}
+
+The frontend stores the token and sends it as \code{Authorization: Bearer <token>}. A JWT is signed, not secret: do not put passwords or sensitive records inside its payload.
+
+\section{Why authentication reloads the user}
+\begin{lstlisting}[title={server/auth.js, simplified}]
+const payload = jwt.verify(token, getSecret())
+const result = await query(
+  'SELECT id, is_admin, is_superuser, email_verified FROM users WHERE id = $1',
+  [Number(payload.sub)],
+)
+req.user = result.rows[0]
+next()
+\end{lstlisting}
+
+Every protected request reloads roles from PostgreSQL. If the superuser removes admin access, an old seven-day token does not retain admin permission. It also ensures deleted or newly unverified accounts cannot continue merely because an old token exists.
+
+\section{Authentication versus authorization}
+Authentication answers ``Who are you?'' Authorization answers ``Are you allowed to do this?''
+
+\begin{itemize}
+  \item Public routes require neither.
+  \item Solver routes use \code{requireAuth}.
+  \item Grading/problem-management routes use \code{requireAuth, requireAdmin}.
+  \item Role-management routes use \code{requireAuth, requireSuperuser}.
+\end{itemize}
+
+Hiding an admin tab in React is not security. A visitor can manufacture HTTP requests. The backend middleware is the real enforcement boundary.
+
+\section{Rate limiting and DDoS reality}
+The API has a broad limit plus tighter limits for registration, failed login, and email actions. This reduces simple automated abuse and prevents one client from generating unlimited email.
+
+\begin{warningbox}
+In-process rate limiting is not complete DDoS protection. A serious production deployment should put the app behind a CDN/reverse proxy such as Cloudflare, configure trusted proxy handling correctly, restrict body sizes, monitor traffic, and use a shared rate-limit store if multiple API instances run. Email verification discourages fake accounts; it does not stop raw traffic from reaching the server.
+\end{warningbox}
+
+\chapter{Feature workflows}
+
+\section{Problem scheduling}
+The admin form defaults new problems to the next Monday at 6:00 PM Eastern and the following Sunday at 6:00 PM Eastern. It sends timezone-free local values such as \code{2026-09-07T18:00}. PostgreSQL interprets each value explicitly in \code{America/Indiana/Indianapolis} and stores absolute \code{timestamptz} instants.
+
+The public current-problem query requires:
+\begin{itemize}
+  \item \code{is\_current = TRUE};
+  \item \code{is\_archived = FALSE};
+  \item release time has arrived; and
+  \item exact due time has not passed.
+\end{itemize}
+
+The separate \code{release\_date} remains useful for season date ranges and human display. Existing problems were migrated to midnight on their old release date; the weekly due-time migration sets legacy weekly deadlines to 6:00 PM Eastern.
+
+\section{Computational and proof submissions}
+Frontend validation improves usability, but backend validation is authoritative:
+\begin{itemize}
+  \item computational problems require \code{answer\_text};
+  \item proof problems require typed \code{work\_text} or a file;
+  \item an optional comment/work field and file may support partial credit;
+  \item files are limited to one and 5 MB;
+  \item the problem must currently be released, current, unarchived, and not overdue.
+\end{itemize}
+
+Answer and work previews are rendered by MathJax in the browser. PostgreSQL stores the original LaTeX text, not rendered HTML or an image. Rendering at display time keeps the data editable.
+
+\section{Editing a response}
+The owner may edit text while the problem is still current and before its due date. Saving an edit clears correctness, score, feedback, grader, and grading time, then returns the attempt to the pending queue. An existing uploaded file stays attached.
+
+This reset matters: otherwise a solver could change a correct answer after receiving five points while retaining the grade.
+
+\section{Grading}
+Admins load pending submissions, inspect text/files and the private reference solution, then assign an integer score from 0 through 5 and optional feedback. The route sets \code{is\_correct} true only at 5 points and records the grader and time.
+
+The profile refreshes every 15 seconds. It shows:
+\begin{itemize}
+  \item exactly what the solver typed and the attached filename;
+  \item Pending, Incorrect, Partial credit, or Correct status;
+  \item score out of 5 and admin feedback;
+  \item a download action for the solver's own file.
+\end{itemize}
+
+\section{Leaderboard seasons}
+The chosen season supplies a start and end date. The backend selects problems whose \code{release\_date} falls inside that range. For every user/problem pair it takes \code{MAX(score)} among graded attempts, so a worse repeat attempt does not erase a better score.
+
+It builds a score map keyed conceptually as \code{userId:problemId}, then returns one row per visible solver with each problem's score, full-credit count, and total points. Rows sort by total points, then solved count, then username.
+
+Admins and superusers are excluded. Users with \code{leaderboard\_hidden = TRUE} are also excluded, but their submissions and private profile scores remain untouched.
+
+\section{Hints and proposals}
+Hint requests live on their own \route{/hints} page rather than inside the problem card. Solvers choose a problem with title buttons and describe what they tried with a LaTeX preview. The front page currently hides published hints. A solver cannot create another pending request for the same problem, and admins can mark requests resolved.
+
+Problem proposals preserve the solver's LaTeX source so admins can review and copy it. Proposal status changes do not automatically create a problem; an admin deliberately transfers/edits accepted content in the Problems tab.
+
+\chapter{API reference}
+
+\small
+\begin{longtable}{p{0.11\textwidth} p{0.38\textwidth} p{0.16\textwidth} p{0.27\textwidth}}
+\toprule
+Method & Path & Access & Purpose \\
+\midrule
+\endhead
+GET & \route{/api/health} & Public & Test API and database connectivity. \\
+POST & \route{/api/auth/register} & Public, limited & Create unverified account and send email. \\
+POST & \route{/api/auth/verify-email} & Public, limited & Consume verification token. \\
+POST & \route{/api/auth/resend-verification} & Public, limited & Send a new verification token when eligible. \\
+POST & \route{/api/auth/login} & Public, failed attempts limited & Check password/verification and return JWT. \\
+POST & \route{/api/auth/forgot-password} & Public, limited & Request generic reset email response. \\
+POST & \route{/api/auth/reset-password} & Public, limited & Consume token and replace password. \\
+GET & \route{/api/problems/current} & Public & Released, active, non-overdue problems. \\
+GET & \route{/api/problems/archive} & Public & Past/non-current/archived problems. \\
+POST & \route{/api/submissions} & Verified user & Submit text and optional file. \\
+GET & \route{/api/submissions/mine} & Verified user & Private history with grades. \\
+PATCH & \route{/api/submissions/:id} & Owner & Edit eligible response and reset grade. \\
+GET & \route{/api/submissions/:id/file} & Owner/admin & Download stored file. \\
+PATCH & \route{/api/profile/preferences} & Verified user & Toggle leaderboard privacy. \\
+GET & \route{/api/seasons} & Public & List leaderboard seasons. \\
+GET & \route{/api/leaderboard?season\_id=:id} & Public & Spreadsheet data for one season. \\
+POST & \route{/api/problem-proposals} & Verified user & Suggest a problem. \\
+GET & \route{/api/problem-proposals/mine} & Verified user & View own proposal statuses. \\
+POST & \route{/api/problems/:id/hint-requests} & Verified user & Ask for a hint when enabled. \\
+GET & \route{/api/admin/submissions} & Admin & Load pending or all attempts. \\
+PATCH & \route{/api/admin/submissions/:id/grade} & Admin & Save score and feedback. \\
+GET/POST & \route{/api/admin/problems} & Admin & List/create problems. \\
+PUT/DELETE & \route{/api/admin/problems/:id} & Admin & Edit/remove a problem. \\
+GET & \route{/api/admin/proposals} & Admin & Load proposals and hint requests. \\
+PATCH & \route{/api/admin/proposals/:id} & Admin & Change proposal status. \\
+PATCH & \route{/api/admin/hint-requests/:id} & Admin & Resolve/reopen hint request. \\
+POST/PUT & \route{/api/admin/seasons[/:id]} & Admin & Create/update seasons. \\
+GET/PATCH & \route{/api/admin/users[/:id]} & Superuser & List users or toggle admin role. \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\chapter{Configuration, running, and testing}
+
+\section{Environment variables}
+\begin{longtable}{p{0.3\textwidth} p{0.62\textwidth}}
+\toprule
+Variable & Meaning \\
+\midrule
+\endhead
+\code{DATABASE\_URL} & PostgreSQL connection URL, including database user, password, host, port, and database name. \\
+\code{JWT\_SECRET} & Long random signing secret for login tokens. Changing it logs everyone out. \\
+\code{PORT} & API port, default 3000. \\
+\code{FRONTEND\_URL} & Allowed browser origin and base for emailed links. \\
+\code{SMTP\_HOST}, \code{SMTP\_PORT} & Mail provider server and port. \\
+\code{SMTP\_SECURE} & True for immediate TLS, normally port 465; port 587 generally upgrades with STARTTLS. \\
+\code{SMTP\_USER}, \code{SMTP\_PASS} & Mail provider credentials. \\
+\code{EMAIL\_FROM} & Visible sender identity. \\
+\code{NODE\_ENV} & Set to \code{production} in deployment; changes database SSL and email fallback behavior. \\
+\code{TRUST\_PROXY} & Configure only to match the production reverse-proxy topology so client IP limiting is correct. \\
+\bottomrule
+\end{longtable}
+
+\section{Development commands}
+From the \file{potw} directory:
+
+\begin{lstlisting}[language={},numbers=none]
+npm install
+npm run dev:all
+\end{lstlisting}
+
+This runs \code{node --watch server/index.js} and Vite together. Keep the terminal open. Visit \url{http://localhost:5173}. Stop both with Ctrl+C.
+
+Useful checks:
+\begin{lstlisting}[language={},numbers=none]
+npm run lint       # catches suspicious JS/TS/React patterns
+npm run build      # type-checks and produces dist/
+npm audit          # scans installed dependency versions
+\end{lstlisting}
+
+\section{Database setup}
+For a new database, apply numbered SQL files in order. The README has copyable commands. If \code{potw} already exists, do not recreate it; apply only missing migrations. Back up important data before schema changes.
+
+\section{A practical manual test checklist}
+\begin{enumerate}
+  \item Open \route{/api/health}; expect \code{\{"status":"ok"\}}.
+  \item Register with a temporary email. Confirm login is blocked before verification.
+  \item Open the development verification link or delivered email and log in.
+  \item Submit a computational answer with LaTeX preview and optional typed/uploaded work.
+  \item Submit a proof by text or file; verify an empty proof is rejected.
+  \item As admin, grade 0, partial, and 5-point attempts and supply feedback.
+  \item As solver, verify profile statuses, exact response, download, score, and feedback.
+  \item Toggle Anonymous mode and verify the leaderboard excludes/includes the solver while profile data stays.
+  \item Create a problem scheduled a few minutes ahead; verify it is absent before and present after the time.
+  \item Request a password reset; confirm the old password fails and new one works.
+  \item Run lint, build, and dependency audit before deployment.
+\end{enumerate}
+
+\chapter{How to trace and change the code}
+
+\section{Trace a feature vertically}
+Do not search randomly. Follow the layers. For ``anonymous leaderboard mode'':
+\begin{enumerate}
+  \item UI: checkbox in \file{ViewProfile.tsx}.
+  \item Frontend request: \route{PATCH /profile/preferences} through \file{api.ts}.
+  \item Backend route: \route{PATCH /api/profile/preferences} in \file{server/index.js}.
+  \item Data: \code{users.leaderboard\_hidden} in \file{001\_schema.sql}/migration 005.
+  \item Consumer: leaderboard user query filters \code{leaderboard\_hidden = FALSE}.
+  \item Type: \code{leaderboard\_hidden} in \file{src/types/user.ts}.
+  \item Style: \code{profile-preferences} rules in \file{Page.css}.
+\end{enumerate}
+
+Most full-stack changes touch several of these layers. If the database stores a field but the API never returns it, React cannot display it. If React sends a field but the backend ignores it, it will not persist.
+
+\section{Example: adding a new problem field}
+Suppose you add an optional topic such as ``Geometry.'' A safe sequence is:
+\begin{enumerate}
+  \item Add migration 007 with \code{ALTER TABLE problems ADD COLUMN topic text}.
+  \item Add it to the fresh schema so new installations also have it.
+  \item Include it in admin SELECT/INSERT/UPDATE code.
+  \item Validate it on the backend if restrictions exist.
+  \item Include it in public problem columns if solvers may see it.
+  \item Add it to the TypeScript \code{Problem} type.
+  \item Add an admin form control and display location.
+  \item Apply the migration, then lint/build/test create/edit/public behavior.
+\end{enumerate}
+
+\section{Reading an error}
+Work from the first meaningful error, not the last cascade.
+\begin{description}
+  \item[Browser console error] Usually frontend JavaScript, rendering, or request failure. Check the Network tab response body.
+  \item[HTTP 400] The request reached the backend but failed validation.
+  \item[HTTP 401] Token missing, invalid, or expired.
+  \item[HTTP 403] Identity is known but lacks verification/permission.
+  \item[HTTP 404] Route or requested record was not found.
+  \item[HTTP 409] Conflict such as duplicate username/email or pending hint request.
+  \item[HTTP 429] Rate limit reached.
+  \item[HTTP 500] Unexpected backend/database/email failure. Read the server terminal stack trace.
+  \item[\code{ECONNREFUSED}] The target process is not listening, often API or PostgreSQL not running.
+\end{description}
+
+\chapter{Known tradeoffs and production notes}
+
+\section{File storage}
+Uploads are currently PostgreSQL \code{bytea}. This is simple and keeps ownership/deletion transactional, but large volume makes database backups and memory usage heavy. Multer holds the entire file in server memory. For a larger deployment, store objects in S3-compatible storage, keep only object metadata/key in PostgreSQL, scan uploads, and use signed download URLs.
+
+\section{Token storage in localStorage}
+The JWT lives in \code{localStorage}, which is straightforward but readable by JavaScript on the page. A cross-site scripting bug could steal it. A hardened design often uses secure, HTTP-only, same-site cookies plus CSRF protections and a strict Content Security Policy.
+
+\section{One large backend file}
+\file{server/index.js} is understandable at this size but is growing. A future refactor could split routes into \file{routes/auth.js}, \file{routes/problems.js}, and so on, and move business rules into services. Refactor only with tests; moving code without behavioral tests can silently change middleware order.
+
+\section{Validation}
+Validation is currently handwritten. A schema library could centralize body shapes and error messages. Database constraints remain valuable even with application validation because they protect data from bugs and manual SQL.
+
+\section{Time handling}
+Release and due instants are timezone-aware and interpreted in Indianapolis time. Calendar-date columns remain for season grouping and compatibility. Time behavior should be tested around daylight-saving changes.
+
+\section{Operational protection}
+A production launch should add:
+\begin{itemize}
+  \item HTTPS everywhere;
+  \item managed PostgreSQL backups and restore drills;
+  \item a reverse proxy/CDN with request and bot controls;
+  \item a shared rate-limit store for multiple API instances;
+  \item structured logs, uptime checks, and error monitoring;
+  \item verified SMTP sender domain with SPF, DKIM, and DMARC;
+  \item secret rotation and least-privilege database credentials;
+  \item automated API/integration tests and a deployment pipeline;
+  \item dependency update and vulnerability review.
+\end{itemize}
+
+\appendix
+\chapter{Glossary}
+\begin{description}
+  \item[API] A defined way for programs to communicate. Here it is the collection of \route{/api/...} HTTP routes.
+  \item[Bearer token] A credential sent in an HTTP header; possession grants the represented session access.
+  \item[Component] A React function that returns part of the interface.
+  \item[CORS] Browser policy controlling which origins may call an API. Not a login system.
+  \item[CRUD] Create, read, update, delete---the basic persistent-data operations.
+  \item[Environment variable] Configuration supplied outside source code, accessed through \code{process.env} on Node.
+  \item[Express] Node web framework used for routes and middleware.
+  \item[Foreign key] Database constraint connecting a value to a primary key in another table.
+  \item[HTTP] Request/response protocol used between browser and backend.
+  \item[JSON] Text data format used by most API requests/responses.
+  \item[JWT] Signed token containing claims such as user ID and expiration.
+  \item[JSX] HTML-like syntax inside React JavaScript/TypeScript.
+  \item[LaTeX/MathJax] LaTeX text is stored; MathJax renders mathematics in the browser. This guide itself is typeset with LaTeX.
+  \item[Middleware] A function in an Express request pipeline that checks, changes, rejects, or forwards a request.
+  \item[Migration] Ordered SQL change that upgrades an existing database schema.
+  \item[Node.js] Runtime that executes backend JavaScript.
+  \item[ORM] A library mapping database rows to language objects. This app does not use one; it uses SQL through \code{pg}.
+  \item[PostgreSQL] Relational database system used for durable application data.
+  \item[Promise] JavaScript object representing a future success or failure.
+  \item[Props] Inputs passed from a parent React component to a child.
+  \item[React] Frontend library that renders components from props and state.
+  \item[Route] Combination of HTTP method and URL path connected to code.
+  \item[SQL injection] Attack caused by mixing untrusted text into SQL syntax; parameterized queries prevent it.
+  \item[State] Values React remembers for a component and uses to render.
+  \item[SMTP] Standard protocol used to send account emails.
+  \item[TypeScript] JavaScript with compile-time type checking.
+  \item[Vite] Development server and frontend build tool.
+\end{description}
+
+\chapter{Fast file lookup}
+\begin{longtable}{p{0.43\textwidth} p{0.5\textwidth}}
+\toprule
+Question & Start here \\
+\midrule
+\endhead
+Where is a browser URL mapped? & \file{src/App.tsx} \\
+How is the logged-in user remembered? & \file{src/App.tsx}, \file{src/types/user.ts} \\
+How are API requests made? & \file{src/lib/api.ts}, then the calling page \\
+How are current problems/submission UI rendered? & \file{src/components/problem-widget/CurrentProb.tsx} \\
+How does grading/problem scheduling work? & \file{src/pages/Admin.tsx} and admin routes in \file{server/index.js} \\
+Where is an API URL implemented? & Search \file{server/index.js} for the path \\
+How is a token checked? & \file{server/auth.js} \\
+How is PostgreSQL reached? & \file{server/db.js} \\
+How are emails constructed? & \file{server/email.js} \\
+What fields are stored? & \file{db/001\_schema.sql} and this guide's data dictionary \\
+How did an old database gain a field? & Matching numbered migration in \file{db/} \\
+How is appearance controlled? & CSS beside the component/page, plus \file{Page.css} \\
+What command runs the project? & \file{package.json} scripts and \file{README.md} \\
+\bottomrule
+\end{longtable}
+
+\backmatter
+\chapter*{Final mental model}
+\addcontentsline{toc}{chapter}{Final mental model}
+React does not talk to PostgreSQL. It renders state and sends HTTP requests. Express receives those requests, runs ordered middleware, validates identity and data, executes parameterized SQL through a connection pool, and returns JSON. PostgreSQL preserves normalized records and constraints. Email verification and password reset are one-time-token workflows; JWTs represent logged-in sessions; admin middleware enforces permissions. Once that chain is clear, the codebase stops being a pile of unfamiliar frameworks and becomes the same request/data/render cycle repeated for each feature.
+
+\end{document}

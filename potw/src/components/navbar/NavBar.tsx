@@ -17,7 +17,7 @@ function Navbar({ user, setUser }: Props) {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1010) {
+      if (window.innerWidth < 1180) {
         setDropDown(true);
       } else {
         setDropDown(false);
@@ -34,7 +34,7 @@ function Navbar({ user, setUser }: Props) {
       <div className="navbar">
         <div className="inner-navbar">
           <Logo />
-          <NavLinks />
+          <NavLinks user={user} />
           <AuthLinks user={user} setUser={setUser} />
         </div>
       </div>
@@ -58,7 +58,7 @@ function Navbar({ user, setUser }: Props) {
             </button>
             {menuOpen ? (
               <div className="dropdown-panel">
-                <NavLinks />
+                <NavLinks user={user} />
                 <AuthLinks user={user} setUser={setUser} />
               </div>
             ) : null}

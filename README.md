@@ -33,11 +33,7 @@ The schema script is compatible with the partial `users`, `problems`, and `submi
 
 ### 2. Configure environment variables
 
-Copy `.env.example` to `.env` and update the values:
-
-```powershell
-Copy-Item .env.example .env
-```
+Create a local `.env` file in the project root and add the following values. This file is intentionally not included in the public repository:
 
 ```env
 DATABASE_URL=postgresql://postgres:your-password@localhost:5432/potw
@@ -58,7 +54,7 @@ Generate a suitable JWT secret in PowerShell with:
 [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
 ```
 
-Do not commit `.env`. It is ignored by Git via the existing `*.local` rule only if named `.env.local`, so `.env` is also explicitly ignored in this repository.
+Do not commit `.env` or any other environment file. They are ignored by Git.
 
 Use the SMTP settings supplied by your email provider. Without SMTP, development mode prints a verification/reset link in the server console so the flows can be tested locally. Production mode requires SMTP and will not expose those links.
 

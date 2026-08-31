@@ -18,7 +18,8 @@ const upload = multer({
 
 if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY)
 
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }))
+const frontendOrigin = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')
+app.use(cors({ origin: frontendOrigin }))
 app.use(express.json({ limit: '100kb' }))
 app.use('/api', rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -99,6 +100,19 @@ app.post('/api/auth/register', registerLimiter, async (req, res, next) => {
     }
     if (password.length < 8) {
       return res.status(400).json({ message: 'Password must be at least 8 characters.' })
+    }
+
+    // An abandoned, unverified signup must not reserve an identity forever.
+    // Verified accounts remain protected from duplicate usernames/emails.
+    const existing = await query(
+      'SELECT id, email_verified FROM users WHERE username = $1 OR email = $2',
+      [username, email],
+    )
+    if (existing.rows.some((row) => row.email_verified)) {
+      return res.status(409).json({ message: 'That username or email is already registered.' })
+    }
+    if (existing.rows.length > 0) {
+      await query('DELETE FROM users WHERE id = ANY($1::integer[])', [existing.rows.map((row) => row.id)])
     }
 
     const passwordHash = await bcrypt.hash(password, 12)

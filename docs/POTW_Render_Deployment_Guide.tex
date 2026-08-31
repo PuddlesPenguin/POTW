@@ -1,0 +1,271 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.8in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{longtable}
+\usepackage{fancyvrb}
+\usepackage{titlesec}
+\definecolor{ink}{HTML}{302719}
+\definecolor{tan}{HTML}{F3EBDD}
+\definecolor{blue}{HTML}{175C86}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+\titleformat{\section}{\Large\bfseries\color{ink}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{ink}}{\thesubsection}{0.6em}{}
+\newcommand{\step}[1]{\subsection*{Step #1}}
+\newcommand{\button}[1]{\fcolorbox{black!15}{tan}{\textsf{#1}}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newenvironment{terminal}{\Verbatim[fontsize=\small,frame=single,framesep=4pt]}{\endVerbatim}
+\setlist{itemsep=3pt,topsep=3pt}
+\begin{document}
+\begin{center}
+ {\Huge\bfseries POTW Deployment Guide}\\[6pt]
+ {\large A click-by-click guide for Namecheap, Resend, Render, and PostgreSQL}\\[10pt]
+ \textit{Prepared for the Purdue Math Club Problem of the Week app}
+\end{center}
+
+\begin{center}\colorbox{tan}{\parbox{0.92\linewidth}{\textbf{Security rule:} Never paste a database password, Resend API key, JWT secret, or complete connection URL into GitHub, screenshots, Discord, or chat. Put secrets only in Render environment variables.}}\end{center}
+
+\tableofcontents
+\newpage
+
+\section{What you are deploying}
+The repository is a single project (a monorepo), but Render will run two services from it:
+\begin{itemize}
+ \item \textbf{Static Site:} builds the React files in \code{src/} and serves the website.
+ \item \textbf{Web Service:} runs the Express API in \code{server/}. It handles login, email, submissions, grading, hints, and database access.
+ \item \textbf{PostgreSQL:} stores users, problems, submissions, grades, seasons, and hint requests.
+\end{itemize}
+The request path is: browser $\rightarrow$ React Static Site $\rightarrow$ Express Web Service $\rightarrow$ PostgreSQL.
+
+\section{Before clicking anything}
+Have these ready:
+\begin{enumerate}
+ \item A GitHub repository containing \code{src/}, \code{server/}, \code{db/}, \code{public/}, and \code{package.json}.
+ \item A Namecheap account and the domain \code{purdue-math-potw.com}.
+ \item A Resend account.
+ \item A Render account connected to the GitHub account.
+ \item PostgreSQL command-line tools (\code{psql}) installed locally for one-time migrations.
+\end{enumerate}
+The repository must not contain \code{.env}, \code{node\_modules/}, or \code{dist/}.
+
+\section{Save and push the project}
+Open PowerShell and run:
+\begin{terminal}
+cd "C:\textbackslash Users\textbackslash YOUR\_NAME\textbackslash Documents\textbackslash GitHub\textbackslash POTW"
+git add .
+git commit -m "Prepare POTW for deployment"
+git push origin main
+\end{terminal}
+If Git asks for a login, complete the GitHub sign-in. If the push fails, stop and fix that before continuing.
+
+\section{Namecheap and Resend email setup}
+\step{Create the Resend domain entry}
+\begin{enumerate}
+ \item Go to \url{https://resend.com} and sign in.
+ \item In the left menu click \button{Domains}.
+ \item Click \button{Add Domain}.
+ \item Enter \code{purdue-math-potw.com} and click \button{Add}.
+ \item Leave this Resend page open. It displays the DNS records you must copy.
+\end{enumerate}
+
+\step{Add DNS records in Namecheap}
+\begin{enumerate}
+ \item Go to \url{https://www.namecheap.com} and sign in.
+ \item Click \button{Domain List} in the left sidebar.
+ \item Find \code{purdue-math-potw.com} and click \button{Manage}.
+ \item Click the \button{Advanced DNS} tab.
+ \item Under \button{Host Records}, click \button{Add New Record}.
+ \item For every record shown by Resend, choose the same type and paste its exact Host and Value.
+ \item Set TTL to \button{Automatic}, then click the green checkmark/save icon.
+\end{enumerate}
+For a Namecheap Host field, use \code{@} when Resend means the root domain. If Resend gives a full hostname, Namecheap may only need the part before \code{.purdue-math-potw.com}. Do not guess: use Resend's displayed values. Do not create a second SPF record if one already exists.
+
+\step{Verify in Resend}
+\begin{enumerate}
+ \item Return to Resend \button{Domains}.
+ \item Click \code{purdue-math-potw.com}.
+ \item Click \button{Verify DNS Records}.
+ \item Wait until the domain status says \button{Verified}.
+\end{enumerate}
+
+\step{Create the Resend API key}
+\begin{enumerate}
+ \item In Resend click \button{API Keys}.
+ \item Click \button{Create API Key}.
+ \item Name it \code{POTW Production}.
+ \item Select \button{Sending access} and restrict it to \code{purdue-math-potw.com} when offered.
+ \item Click \button{Create Key}.
+ \item Copy the complete key beginning with \code{re\_}. Resend only displays it once.
+\end{enumerate}
+
+\section{Create Render PostgreSQL}
+\begin{enumerate}
+ \item Go to \url{https://dashboard.render.com}.
+ \item Click \button{New} in the upper-right corner.
+ \item Select \button{PostgreSQL}.
+ \item Name it \code{potw-db}.
+ \item Choose the same region you will use for the backend (Ohio is appropriate for Purdue users).
+ \item Choose a paid production plan if you need reliable always-on production behavior.
+ \item Click \button{Create Database}.
+ \item Wait until the database status says \button{Available}.
+ \item Open the database, click \button{Connect}, and copy the \textbf{External Database URL} for local migrations.
+\end{enumerate}
+Use the database's \textbf{Internal Database URL} later in the Render backend service. Render recommends internal connections for services in the same region.
+
+\section{Unverified signup behavior}
+The app intentionally does not let an abandoned, unverified signup reserve a username or email forever. When a new registration matches an existing \textbf{unverified} username or email, the old unverified account is replaced and a fresh verification email is sent. A verified account is never replaced; it correctly receives a ``username or email already registered'' error. This also invalidates the old verification link, so use only the newest email link.
+
+To test this after deployment:
+\begin{enumerate}
+ \item Register a username and email, but do not click its verification link.
+ \item Register again with the same username and email.
+ \item Confirm the second registration succeeds and a new email arrives.
+ \item Click only the newest link; the old link should be invalid.
+ \item Verify the account and then try registering the same username again; this time it must be rejected.
+\end{enumerate}
+
+\section{Run the database migrations}
+These commands create the schema and apply all features. Run them once, in this exact order.
+
+\step{Open PowerShell in the repository}
+\begin{terminal}
+cd "C:\textbackslash Users\textbackslash YOUR\_NAME\textbackslash Documents\textbackslash GitHub\textbackslash POTW"
+$prodDbUrl = Read-Host "Paste the Render External Database URL"
+\end{terminal}
+Paste the URL only when PowerShell prompts you. It will not be printed in this guide.
+
+\step{Run each file}
+\begin{terminal}
+psql $prodDbUrl -f db/001_schema.sql
+psql $prodDbUrl -f db/002_sample_problems.sql
+psql $prodDbUrl -f db/003_admin_features.sql
+psql $prodDbUrl -f db/004_submission_options.sql
+psql $prodDbUrl -f db/005_account_security.sql
+psql $prodDbUrl -f db/006_problem_release_times.sql
+psql $prodDbUrl -f db/007_problem_due_times.sql
+psql $prodDbUrl -f db/008_default_due_time.sql
+psql $prodDbUrl -f db/009_align_seed_season.sql
+psql $prodDbUrl -f db/010_hint_responses.sql
+\end{terminal}
+\step{Verify}
+\begin{terminal}
+psql $prodDbUrl -c "\\dt"
+psql $prodDbUrl -c "SELECT COUNT(*) AS problems FROM problems; SELECT COUNT(*) AS seasons FROM seasons;"
+\end{terminal}
+You should see tables including \code{users}, \code{problems}, \code{submissions}, \code{seasons}, \code{problem\_proposals}, and \code{hint\_requests}.\\
+
+\section{Create the Render backend}
+\begin{enumerate}
+ \item In Render click \button{New} $\rightarrow$ \button{Web Service}.
+ \item Select the GitHub repository and click \button{Connect}.
+ \item Leave \button{Root Directory} blank. The project is now at the repository root.
+ \item Set Runtime to \button{Node}.
+ \item Set Build Command to \code{npm install}.
+ \item Set Start Command to \code{npm run start:server}.
+ \item Click \button{Create Web Service}.
+\end{enumerate}
+
+\step{Add backend environment variables}
+Open the new service, click \button{Environment} in the sidebar, then click \button{Add Environment Variable}. Add each row:
+\begin{longtable}{p{0.28\linewidth}p{0.62\linewidth}}
+\code{NODE\_ENV} & \code{production}\\
+\code{DATABASE\_URL} & Render PostgreSQL \textbf{Internal Database URL}\\
+\code{JWT\_SECRET} & A new random value generated locally\\
+\code{FRONTEND\_URL} & Temporarily \code{https://example.com}\\
+\code{TRUST\_PROXY} & \code{1}\\
+\code{SMTP\_HOST} & \code{smtp.resend.com}\\
+\code{SMTP\_PORT} & \code{587}\\
+\code{SMTP\_SECURE} & \code{false}\\
+\code{SMTP\_USER} & \code{resend}\\
+\code{SMTP\_PASS} & Complete Resend API key\\
+\code{EMAIL\_FROM} & \code{Purdue Math Club POTW <noreply@purdue-math-potw.com>}\\
+\end{longtable}
+Generate the JWT value in PowerShell:
+\begin{terminal}
+[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
+\end{terminal}
+Click \button{Save Changes}; Render redeploys the service.
+
+\step{Test the backend}
+Copy the backend's Render URL, then open:
+\begin{terminal}
+https://YOUR-BACKEND.onrender.com/api/health
+\end{terminal}
+The page must display \code{\{"status":"ok"\}} before you create the frontend.
+
+\section{Create the Render frontend}
+\begin{enumerate}
+ \item In Render click \button{New} $\rightarrow$ \button{Static Site}.
+ \item Select the same GitHub repository and click \button{Connect}.
+ \item Leave \button{Root Directory} blank.
+ \item Set Build Command to \code{npm install \&\& npm run build}.
+ \item Set Publish Directory to \code{dist}.
+ \item Under Environment Variables add \code{VITE\_API\_URL}. Set its value to the backend URL:
+ \begin{terminal}
+ VITE_API_URL=https://YOUR-BACKEND.onrender.com
+ \end{terminal}
+ \item Click \button{Create Static Site}.
+\end{enumerate}
+
+\step{Add the SPA rewrite}
+In the frontend service click \button{Redirects/Rewrites} (or \button{Settings} $\rightarrow$ \button{Redirects and Rewrites}), click \button{Add Rule}, and enter:
+\begin{longtable}{p{0.25\linewidth}p{0.3\linewidth}p{0.3\linewidth}}
+Source & Destination & Action\\
+\code{/*} & \code{/index.html} & \code{Rewrite}\\
+\end{longtable}
+Save the rule and redeploy if Render asks.
+
+\section{Connect the two services}
+Copy the frontend URL, for example \code{https://potw-frontend.onrender.com}. Return to the backend service, open \button{Environment}, and replace the temporary value with:
+\begin{terminal}
+FRONTEND_URL=https://YOUR-FRONTEND.onrender.com
+\end{terminal}
+Save and redeploy the backend. This allows browser requests from the frontend to reach the API.
+
+\section{First production test}
+Run these tests in order:
+\begin{enumerate}
+ \item Open the frontend Render URL.
+ \item Register a test account.
+ \item Confirm the verification email arrives.
+ \item Log in and submit a solution.
+ \item Log in as the admin and open \button{Admin} $\rightarrow$ \button{Grading}.
+ \item Grade the submission and confirm the leaderboard updates.
+ \item Open \button{Hints}, request a hint, and respond from the admin proposals tab.
+ \item Confirm the solver sees the response.
+ \item Test file upload, profile history, password reset, and anonymous mode.
+ \item Refresh \code{/leaderboard}, \code{/profile}, and \code{/hints}; each must still load because of the rewrite.
+\end{enumerate}
+
+\section{Common problems}
+\begin{longtable}{p{0.29\linewidth}p{0.62\linewidth}}
+No Environment tab & You opened the database or Static Site. Open the backend \textbf{Web Service}.\\
+Emails fail with 403 & The domain is not verified, the sender does not use the verified domain, or you used a shortened API key.\\
+CORS error & Set backend \code{FRONTEND\_URL} to the exact frontend URL, save, and redeploy.\\
+Frontend API errors & Check \code{VITE\_API\_URL}; it must be the backend URL with no trailing \code{/api}.\\
+Refresh gives 404 & Add the Static Site rewrite \code{/*} $\rightarrow$ \code{/index.html} as a Rewrite.\\
+Database connection fails & Use the Render Internal URL in the backend and confirm the database is Available.\\
+Migrations fail with relation exists & Usually safe; many migrations are idempotent. Read the first actual ERROR line.\\
+\end{longtable}
+
+\section{After launch}
+\begin{itemize}
+ \item Enable paid PostgreSQL backups/recovery appropriate for your data.
+ \item Rotate the database credential and Resend key if either was exposed.
+ \item Add a custom website domain later; Render's generated URL works without one.
+ \item Keep the backend service running continuously because its scheduler archives expired problems.
+ \item Never put secrets in frontend variables; anything beginning with \code{VITE\_} is visible in the browser build.
+\end{itemize}
+
+\section{Useful official documentation}
+\begin{itemize}
+ \item Render deployment: \url{https://render.com/docs/your-first-deploy}
+ \item Render Postgres: \url{https://render.com/docs/postgresql-creating-connecting}
+ \item Resend domains: \url{https://resend.com/docs/dashboard/domains/introduction}
+ \item Resend API keys: \url{https://resend.com/docs/dashboard/api-keys/introduction}
+ \item Resend SMTP: \url{https://resend.com/docs/send-with-smtp}
+\end{itemize}
+\end{document}

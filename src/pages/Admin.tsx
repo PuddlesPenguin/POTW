@@ -149,7 +149,7 @@ function GradingTab({ user }: { user: User }) {
             <article className="simple-card" key={submission.id}>
               <div className="card-title-row"><div><span className="status">{submission.problem_type}</span><h3>{submission.title}</h3></div><span className="muted">{submission.username}</span></div>
               <p className="muted">Submitted {new Date(submission.submitted_at).toLocaleString()}</p>
-              {submission.answer_text ? <div className="answer-box"><strong>Short answer</strong><p>{submission.answer_text}</p></div> : null}
+              {submission.answer_text ? <div className="answer-box"><strong>Short answer</strong><MathJax dynamic>{submission.answer_text}</MathJax></div> : null}
               {submission.work_text ? <div className="answer-box"><strong>{submission.problem_type.toLowerCase().includes('proof') ? 'Written proof' : 'Comment / shown work'}</strong><MathJax dynamic>{submission.work_text}</MathJax></div> : null}
               {submission.file_name ? <button className="secondary-button" type="button" onClick={() => downloadSubmissionFile(submission.id, user).catch((error) => setMessage(error.message))}>Download {submission.file_name}</button> : null}
               {submission.solution_latex ? <details><summary>Reference solution</summary><div className="latex-preview"><MathJax dynamic>{submission.solution_latex}</MathJax></div></details> : null}
@@ -249,6 +249,7 @@ function ProblemsTab({ user }: { user: User }) {
           <article className="simple-card compact-card" key={problem.id}>
             <div className="card-title-row"><div><span className="status">{problem.problem_type}</span><h3>{problem.title}</h3></div><span className="muted">{problem.release_at ? formatTimestamp(problem.release_at) : formatDate(problem.release_date)}</span></div>
             <p className="muted">Difficulty {problem.difficulty_rating ?? '—'}/10 · Due {problem.due_at ? formatTimestamp(problem.due_at) : formatDate(problem.due_date)} · {problem.is_archived ? 'Archived' : problem.is_current ? 'Scheduled/current' : 'Draft'}</p>
+            <details><summary>Review problem and solution</summary><div className="latex-preview"><strong>Problem</strong><MathJax dynamic>{problem.statement_latex}</MathJax></div>{problem.solution_latex ? <div className="latex-preview"><strong>Solution</strong><MathJax dynamic>{problem.solution_latex}</MathJax></div> : <p className="muted">No solution has been added.</p>}</details>
             <div className="button-row"><button className="secondary-button" type="button" onClick={() => edit(problem)}>Edit</button><button className="danger-button" type="button" onClick={() => remove(problem)}>Remove</button></div>
           </article>
         ))}

@@ -46,6 +46,7 @@ function Signup({ user, setUser }: Props) {
           }}
         >
           <h1>Signup</h1>
+          {!success ? <p className="signup-notice"><strong>Please use a personal email if possible.</strong> Purdue may quarantine verification emails. If you do not receive one, message Puddles_Penguin or email tpauskar@purdue.edu and I can manually verify your account.</p> : null}
           {success ? (
             <div className="auth-success" role="status">
               <p>{success}</p>

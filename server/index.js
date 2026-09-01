@@ -860,6 +860,23 @@ app.patch('/api/admin/users/:id', requireAuth, requireSuperuser, async (req, res
   }
 })
 
+app.delete('/api/admin/users/:id', requireAuth, requireSuperuser, async (req, res, next) => {
+  try {
+    const accountId = Number(req.params.id)
+    if (!Number.isInteger(accountId)) return res.status(400).json({ message: 'Invalid account.' })
+    const result = await query(
+      `DELETE FROM users
+       WHERE id = $1 AND is_superuser = FALSE
+       RETURNING id, username`,
+      [accountId],
+    )
+    if (!result.rows[0]) return res.status(400).json({ message: 'That account cannot be deleted.' })
+    res.json({ deleted_user: result.rows[0], message: 'Account and its associated submissions were deleted.' })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.use((error, _req, res, _next) => {
   if (error instanceof multer.MulterError) {
     return res.status(400).json({ message: error.code === 'LIMIT_FILE_SIZE' ? 'Files must be 5 MB or smaller.' : error.message })

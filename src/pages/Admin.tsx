@@ -381,8 +381,20 @@ function UsersTab({ user }: { user: User }) {
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not update that user.') }
   }
 
+  async function remove(account: ManagedUser) {
+    const confirmed = window.confirm(`Delete ${account.username}'s account? This permanently deletes their submissions, proposals, and hint requests.`)
+    if (!confirmed) return
+    try {
+      const data = await apiRequest<{ message: string }>(`/admin/users/${account.id}`, { method: 'DELETE' }, user)
+      setUsers((current) => current.filter((item) => item.id !== account.id))
+      setMessage(data.message)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not delete that user.')
+    }
+  }
+
   return (
-    <section className="admin-section"><div className="section-heading"><div><h2>User access</h2><p className="muted">Only the superuser can add or remove admins.</p></div></div>{message ? <p className="form-message">{message}</p> : null}<div className="panel table-wrap"><table className="simple-table"><thead><tr><th>User</th><th>Email</th><th>Role</th><th></th></tr></thead><tbody>{users.map((account) => <tr key={account.id}><td>{account.username}</td><td>{account.email}</td><td>{account.is_superuser ? 'Superuser' : account.is_admin ? 'Admin' : 'Solver'}</td><td>{account.is_superuser ? <span className="status">Protected</span> : <button className="secondary-button" type="button" onClick={() => toggle(account)}>{account.is_admin ? 'Remove admin' : 'Make admin'}</button>}</td></tr>)}</tbody></table></div></section>
+    <section className="admin-section"><div className="section-heading"><div><h2>User access</h2><p className="muted">Only the superuser can manage accounts.</p></div></div>{message ? <p className="form-message">{message}</p> : null}<div className="panel table-wrap"><table className="simple-table"><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead><tbody>{users.map((account) => <tr key={account.id}><td>{account.username}</td><td>{account.email}</td><td>{account.is_superuser ? 'Superuser' : account.is_admin ? 'Admin' : 'Solver'}</td><td>{account.is_superuser ? <span className="status">Protected</span> : <div className="button-row"><button className="secondary-button" type="button" onClick={() => toggle(account)}>{account.is_admin ? 'Remove admin' : 'Make admin'}</button><button className="danger-button" type="button" onClick={() => remove(account)}>Delete account</button></div>}</td></tr>)}</tbody></table></div></section>
   )
 }
 

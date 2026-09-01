@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import NavBar from '../../components/navbar/NavBar'
 import { resendVerification, verifyEmail } from '../../lib/auth'
@@ -11,18 +11,20 @@ function VerifyEmail({ user, setUser }: Props) {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') ?? ''
   const [email, setEmail] = useState('')
-  const [message, setMessage] = useState(token ? 'Verifying your email...' : '')
+  const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [developmentUrl, setDevelopmentUrl] = useState('')
-  const [loading, setLoading] = useState(Boolean(token))
+  const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    if (!token) return
-    verifyEmail(token)
-      .then((result) => setMessage(result.message))
-      .catch((verifyError) => setError(verifyError instanceof Error ? verifyError.message : 'Could not verify your email.'))
-      .finally(() => setLoading(false))
-  }, [token])
+  async function confirmVerification() {
+    setLoading(true); setError(''); setMessage('')
+    try {
+      const result = await verifyEmail(token)
+      setMessage(result.message)
+    } catch (verifyError) {
+      setError(verifyError instanceof Error ? verifyError.message : 'Could not verify your email.')
+    } finally { setLoading(false) }
+  }
 
   async function resend() {
     setLoading(true); setError(''); setMessage(''); setDevelopmentUrl('')
@@ -37,9 +39,9 @@ function VerifyEmail({ user, setUser }: Props) {
 
   return <div className="login-page"><NavBar user={user} setUser={setUser} /><div className="login-body"><div className="login-form-container"><form onSubmit={(event) => { event.preventDefault(); void resend() }}>
     <h1>Verify email</h1>
-    {message ? <div className="auth-success" role="status"><p>{message}</p>{developmentUrl ? <a href={developmentUrl}>Open the development verification link</a> : null}{token ? <Link to="/login">Continue to login</Link> : null}</div> : null}
+    {message ? <div className="auth-success" role="status"><p>{message}</p>{developmentUrl ? <a href={developmentUrl}>Open the development verification link</a> : null}{token && message.startsWith('Email verified') ? <Link to="/login">Continue to login</Link> : null}</div> : null}
     {error ? <p role="alert">{error}</p> : null}
-    {!token ? <><label htmlFor="verification-email">Email</label><input id="verification-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" /><button type="submit" disabled={loading}>{loading ? 'Sending...' : 'Send verification email'}</button></> : null}
+    {token ? <><p>Press the button below to verify your email. Opening this page alone does not verify your account.</p><button type="button" onClick={() => void confirmVerification()} disabled={loading}>{loading ? 'Verifying...' : 'Verify my email'}</button></> : <><label htmlFor="verification-email">Email</label><input id="verification-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" /><button type="submit" disabled={loading}>{loading ? 'Sending...' : 'Send verification email'}</button></>}
   </form></div></div></div>
 }
 

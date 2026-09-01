@@ -325,7 +325,12 @@ app.post('/api/submissions', requireAuth, upload.single('file'), async (req, res
        RETURNING id, submitted_at`,
       [req.user.id, problemId, answerText, workText, req.file?.originalname ?? null, req.file?.mimetype ?? null, req.file?.buffer ?? null],
     )
-    res.status(201).json({ submission: result.rows[0], message: 'Your answer was submitted.' })
+    const submissionsRemaining = 5 - submissionCount.rows[0].count - 1
+    res.status(201).json({
+      submission: result.rows[0],
+      submissions_remaining: submissionsRemaining,
+      message: `Submission saved. You have ${submissionsRemaining} submission${submissionsRemaining === 1 ? '' : 's'} remaining for this problem. You can edit this response before the deadline.`,
+    })
   } catch (error) {
     if (error.code === '23503') return res.status(400).json({ message: 'Invalid problem or user.' })
     next(error)
@@ -342,6 +347,21 @@ app.get('/api/submissions/mine', requireAuth, async (req, res, next) => {
       [req.user.id],
     )
     res.json({ submissions: result.rows })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/submissions/limits', requireAuth, async (req, res, next) => {
+  try {
+    const result = await query(
+      `SELECT problem_id, COUNT(*)::integer AS submission_count
+       FROM submissions WHERE user_id = $1 GROUP BY problem_id`,
+      [req.user.id],
+    )
+    res.json({
+      remaining_by_problem: Object.fromEntries(result.rows.map((row) => [row.problem_id, Math.max(0, 5 - row.submission_count)])),
+    })
   } catch (error) {
     next(error)
   }

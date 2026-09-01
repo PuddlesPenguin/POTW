@@ -36,6 +36,7 @@ function CurrentProb({ user }: Props) {
   const [workOpen, setWorkOpen] = useState(false)
   const [visibleHints, setVisibleHints] = useState<Set<number>>(() => new Set())
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [remainingByProblem, setRemainingByProblem] = useState<Record<number, number>>({})
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -51,6 +52,13 @@ function CurrentProb({ user }: Props) {
       .finally(() => setIsLoading(false))
     return () => controller.abort()
   }, [])
+
+  useEffect(() => {
+    if (!user) { setRemainingByProblem({}); return }
+    apiRequest<{ remaining_by_problem: Record<number, number> }>('/submissions/limits', {}, user)
+      .then((data) => setRemainingByProblem(data.remaining_by_problem))
+      .catch(() => undefined)
+  }, [user])
 
   const activeProblem = problems.find((problem) => getProblemType(problem.problem_type) === problemType)
   const isProof = problemType === 'Proof-based'
@@ -76,8 +84,9 @@ function CurrentProb({ user }: Props) {
     setSubmitting(true)
     setMessage('')
     try {
-      const data = await apiRequest<{ message: string }>('/submissions', { method: 'POST', body: formData }, user)
+      const data = await apiRequest<{ message: string; submissions_remaining: number }>('/submissions', { method: 'POST', body: formData }, user)
       setMessage(data.message)
+      setRemainingByProblem((current) => ({ ...current, [activeProblem.id]: data.submissions_remaining }))
       setAnswerText('')
       setWorkText('')
       setWorkOpen(false)
@@ -149,6 +158,7 @@ function CurrentProb({ user }: Props) {
                 <h3>Your solution</h3>
                 {user ? (
                 <form className="submit-area" onSubmit={submit}>
+                  <p className="submission-limit">{remainingByProblem[activeProblem.id] ?? 5} of 5 submissions remaining</p>
                   {!isProof ? (
                     <>
                       <input aria-label="Short answer" id="answer" value={answerText} onChange={(event) => setAnswerText(event.target.value)} placeholder="Enter your final answer. LaTeX is supported." required />

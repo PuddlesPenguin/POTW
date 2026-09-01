@@ -486,17 +486,10 @@ app.get('/api/leaderboard', async (req, res, next) => {
       [season.start_date, season.end_date],
     )
     const scoresResult = await query(
-      `SELECT user_id, problem_id, score
-       FROM (
-         SELECT s.user_id, s.problem_id, s.score,
-                ROW_NUMBER() OVER (
-                  PARTITION BY s.user_id, s.problem_id
-                  ORDER BY s.graded_at DESC, s.id DESC
-                ) AS row_number
-         FROM submissions s JOIN problems p ON p.id = s.problem_id
-         WHERE s.graded_at IS NOT NULL AND p.release_date BETWEEN $1 AND $2
-       ) graded
-       WHERE row_number = 1`,
+      `SELECT s.user_id, s.problem_id, MAX(s.score)::integer AS score
+       FROM submissions s JOIN problems p ON p.id = s.problem_id
+       WHERE s.graded_at IS NOT NULL AND p.release_date BETWEEN $1 AND $2
+       GROUP BY s.user_id, s.problem_id`,
       [season.start_date, season.end_date],
     )
     const scoreMap = new Map(scoresResult.rows.map((row) => [`${row.user_id}:${row.problem_id}`, row.score]))
@@ -696,6 +689,16 @@ app.patch('/api/admin/submissions/:id/grade', requireAuth, requireAdmin, async (
     )
     if (!result.rows[0]) return res.status(404).json({ message: 'Submission not found.' })
     res.json({ submission: result.rows[0], message: 'Grade saved.' })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.delete('/api/admin/submissions/:id', requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const result = await query('DELETE FROM submissions WHERE id = $1 RETURNING id', [Number(req.params.id)])
+    if (!result.rows[0]) return res.status(404).json({ message: 'Submission not found.' })
+    res.json({ message: 'Submission removed.' })
   } catch (error) {
     next(error)
   }

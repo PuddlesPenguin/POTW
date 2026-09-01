@@ -133,6 +133,17 @@ function GradingTab({ user }: { user: User }) {
     setGrades((current) => ({ ...current, [id]: { score: current[id]?.score ?? '0', feedback: current[id]?.feedback ?? '', [field]: value } }))
   }
 
+  async function removeSubmission(submission: Submission) {
+    if (!window.confirm(`Remove ${submission.username}'s response to ${submission.title}? This cannot be undone.`)) return
+    try {
+      const data = await apiRequest<{ message: string }>(`/admin/submissions/${submission.id}`, { method: 'DELETE' }, user)
+      setSubmissions((current) => current.filter((item) => item.id !== submission.id))
+      setMessage(data.message)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not remove the submission.')
+    }
+  }
+
   return (
     <section className="admin-section">
       <div className="section-heading"><div><h2>{showAll ? 'All submissions' : 'Pending grading'}</h2><p className="muted">Each problem is worth up to 5 points.</p></div><span className="count-badge">{submissions.length}</span></div>
@@ -156,7 +167,7 @@ function GradingTab({ user }: { user: User }) {
               <div className="grade-row">
                 <label>Score (0–5)<input type="number" min="0" max="5" step="1" value={grade.score} onChange={(event) => updateGrade(submission.id, 'score', event.target.value)} /></label>
                 <label>Feedback<input value={grade.feedback} onChange={(event) => updateGrade(submission.id, 'feedback', event.target.value)} placeholder="Optional feedback" /></label>
-                <button className="primary-button" type="button" onClick={() => saveGrade(submission)}>Save grade</button>
+                <div className="button-row"><button className="primary-button" type="button" onClick={() => saveGrade(submission)}>Save grade</button><button className="danger-button" type="button" onClick={() => void removeSubmission(submission)}>Remove response</button></div>
               </div>
             </article>
           )

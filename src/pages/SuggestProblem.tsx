@@ -52,6 +52,18 @@ function SuggestProblem({ user, setUser }: Props) {
     setForm((current) => ({ ...current, [field]: value }))
   }
 
+  async function removeProposal(proposal: ProposalSummary) {
+    if (!window.confirm(`Remove your proposal, ${proposal.title}?`)) return
+    try {
+      const data = await apiRequest<{ message: string }>(`/problem-proposals/${proposal.id}`, { method: 'DELETE' }, user)
+      setProposals((current) => current.filter((item) => item.id !== proposal.id))
+      if (editingProposalId === proposal.id) { setEditingProposalId(null); setForm(emptyForm) }
+      setMessage(data.message)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not remove your proposal.')
+    }
+  }
+
   return (
     <MathJaxContext>
       <div className="app-page">
@@ -89,7 +101,7 @@ function SuggestProblem({ user, setUser }: Props) {
                     <span className="status">{proposal.status}</span>
                     <strong>{proposal.title}</strong>
                     <span className="muted">Sent {new Date(proposal.created_at).toLocaleDateString()}</span>
-                    {proposal.status === 'pending' ? <div><button className="secondary-button" type="button" onClick={() => { setEditingProposalId(proposal.id); setForm({ title: proposal.title, statement_latex: proposal.statement_latex, solution_latex: proposal.solution_latex ?? '', source: proposal.source ?? '', notes: proposal.notes ?? '' }); setMessage('Editing your proposal.') }}>Edit proposal</button></div> : null}
+                    {proposal.status === 'pending' ? <div className="button-row"><button className="secondary-button" type="button" onClick={() => { setEditingProposalId(proposal.id); setForm({ title: proposal.title, statement_latex: proposal.statement_latex, solution_latex: proposal.solution_latex ?? '', source: proposal.source ?? '', notes: proposal.notes ?? '' }); setMessage('Editing your proposal.') }}>Edit proposal</button><button className="danger-button" type="button" onClick={() => void removeProposal(proposal)}>Remove proposal</button></div> : null}
                   </article>
                 ))}
               </div>

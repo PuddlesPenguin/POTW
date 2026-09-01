@@ -307,6 +307,28 @@ function ProposalsTab({ user }: { user: User }) {
     }
   }
 
+  async function removeProposal(proposal: Proposal) {
+    if (!window.confirm(`Remove the proposal, ${proposal.title}?`)) return
+    try {
+      const data = await apiRequest<{ message: string }>(`/admin/proposals/${proposal.id}`, { method: 'DELETE' }, user)
+      setProposals((current) => current.filter((item) => item.id !== proposal.id))
+      setMessage(data.message)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not remove the proposal.')
+    }
+  }
+
+  async function removeHint(hint: HintRequest) {
+    if (!window.confirm(`Remove ${hint.username}'s hint request for ${hint.problem_title}?`)) return
+    try {
+      const data = await apiRequest<{ message: string }>(`/admin/hint-requests/${hint.id}`, { method: 'DELETE' }, user)
+      setHints((current) => current.filter((item) => item.id !== hint.id))
+      setHintMessage(data.message)
+    } catch (error) {
+      setHintMessage(error instanceof Error ? error.message : 'Could not remove the hint request.')
+    }
+  }
+
   return (
     <section className="admin-section">
       <div className="section-heading"><h2>Problem proposals</h2><span className="count-badge">{proposals.filter((item) => item.status === 'pending').length} pending</span></div>
@@ -320,7 +342,7 @@ function ProposalsTab({ user }: { user: User }) {
             <button className="secondary-button copy-button" type="button" onClick={() => navigator.clipboard.writeText(proposal.statement_latex)}>Copy statement LaTeX</button>
             {proposal.solution_latex ? <details><summary>Proposed solution</summary><div className="latex-preview"><MathJax dynamic>{proposal.solution_latex}</MathJax></div><button className="secondary-button copy-button" type="button" onClick={() => navigator.clipboard.writeText(proposal.solution_latex ?? '')}>Copy solution LaTeX</button></details> : null}
             {proposal.source ? <p><strong>Source:</strong> {proposal.source}</p> : null}{proposal.notes ? <p><strong>Notes:</strong> {proposal.notes}</p> : null}
-            <div className="button-row"><button className="primary-button" type="button" onClick={() => setProposalStatus(proposal.id, 'accepted')}>Accept</button><button className="secondary-button" type="button" onClick={() => setProposalStatus(proposal.id, 'declined')}>Decline</button><button className="secondary-button" type="button" onClick={() => setProposalStatus(proposal.id, 'pending')}>Pending</button></div>
+            <div className="button-row"><button className="primary-button" type="button" onClick={() => setProposalStatus(proposal.id, 'accepted')}>Accept</button><button className="secondary-button" type="button" onClick={() => setProposalStatus(proposal.id, 'declined')}>Decline</button><button className="secondary-button" type="button" onClick={() => setProposalStatus(proposal.id, 'pending')}>Pending</button><button className="danger-button" type="button" onClick={() => void removeProposal(proposal)}>Remove</button></div>
           </article>
         ))}
       </div>
@@ -334,7 +356,7 @@ function ProposalsTab({ user }: { user: User }) {
           </div>
           <div className="hint-response-form">
             <label className="hint-response-field">Your response <span>LaTeX supported</span><textarea rows={4} value={hintResponses[hint.id] ?? hint.response ?? ''} onChange={(event) => setHintResponses((current) => ({ ...current, [hint.id]: event.target.value }))} placeholder="Write a useful next step or hint" /></label>
-            <div className="button-row"><button className="primary-button" type="button" onClick={() => respondToHint(hint)}>{hint.response ? 'Update response' : 'Send response'}</button>{hint.status === 'pending' ? <button className="secondary-button" type="button" onClick={() => setHintStatus(hint, 'resolved')}>Mark resolved</button> : <button className="secondary-button" type="button" onClick={() => setHintStatus(hint, 'pending')}>Reopen</button>}</div>
+            <div className="button-row"><button className="primary-button" type="button" onClick={() => respondToHint(hint)}>{hint.response ? 'Update response' : 'Send response'}</button>{hint.status === 'pending' ? <button className="secondary-button" type="button" onClick={() => setHintStatus(hint, 'resolved')}>Mark resolved</button> : <button className="secondary-button" type="button" onClick={() => setHintStatus(hint, 'pending')}>Reopen</button>}<button className="danger-button" type="button" onClick={() => void removeHint(hint)}>Remove</button></div>
           </div>
         </article>)}</div>
       )}

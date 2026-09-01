@@ -537,6 +537,21 @@ app.patch('/api/problem-proposals/:id', requireAuth, async (req, res, next) => {
   }
 })
 
+app.delete('/api/problem-proposals/:id', requireAuth, async (req, res, next) => {
+  try {
+    const result = await query(
+      `DELETE FROM problem_proposals
+       WHERE id = $1 AND user_id = $2 AND status = 'pending'
+       RETURNING id`,
+      [Number(req.params.id), req.user.id],
+    )
+    if (!result.rows[0]) return res.status(404).json({ message: 'Only a pending proposal of your own can be removed.' })
+    res.json({ message: 'Proposal removed.' })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.post('/api/problems/:id/hint-requests', requireAuth, async (req, res, next) => {
   try {
     const problemId = Number(req.params.id)
@@ -595,6 +610,21 @@ app.patch('/api/hint-requests/:id', requireAuth, async (req, res, next) => {
     )
     if (!result.rows[0]) return res.status(404).json({ message: 'Only a pending request of your own can be edited.' })
     res.json({ hint_request: result.rows[0], message: 'Hint request updated.' })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.delete('/api/hint-requests/:id', requireAuth, async (req, res, next) => {
+  try {
+    const result = await query(
+      `DELETE FROM hint_requests
+       WHERE id = $1 AND user_id = $2 AND status = 'pending'
+       RETURNING id`,
+      [Number(req.params.id), req.user.id],
+    )
+    if (!result.rows[0]) return res.status(404).json({ message: 'Only a pending request of your own can be removed.' })
+    res.json({ message: 'Hint request removed.' })
   } catch (error) {
     next(error)
   }
@@ -774,6 +804,16 @@ app.patch('/api/admin/proposals/:id', requireAuth, requireAdmin, async (req, res
   }
 })
 
+app.delete('/api/admin/proposals/:id', requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const result = await query('DELETE FROM problem_proposals WHERE id = $1 RETURNING id', [Number(req.params.id)])
+    if (!result.rows[0]) return res.status(404).json({ message: 'Proposal not found.' })
+    res.json({ message: 'Proposal removed.' })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.patch('/api/admin/hint-requests/:id', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const status = req.body.status === 'resolved' ? 'resolved' : 'pending'
@@ -788,6 +828,16 @@ app.patch('/api/admin/hint-requests/:id', requireAuth, requireAdmin, async (req,
     )
     if (!result.rows[0]) return res.status(404).json({ message: 'Hint request not found.' })
     res.json({ hint_request: result.rows[0], message: 'Hint request updated.' })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.delete('/api/admin/hint-requests/:id', requireAuth, requireAdmin, async (req, res, next) => {
+  try {
+    const result = await query('DELETE FROM hint_requests WHERE id = $1 RETURNING id', [Number(req.params.id)])
+    if (!result.rows[0]) return res.status(404).json({ message: 'Hint request not found.' })
+    res.json({ message: 'Hint request removed.' })
   } catch (error) {
     next(error)
   }

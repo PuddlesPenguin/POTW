@@ -61,6 +61,18 @@ function RequestHint({ user, setUser }: Props) {
     }
   }
 
+  async function removeRequest(request: HintRequest) {
+    if (!window.confirm(`Remove your hint request for ${request.problem_title}?`)) return
+    try {
+      const data = await apiRequest<{ message: string }>(`/hint-requests/${request.id}`, { method: 'DELETE' }, user)
+      setRequests((current) => current.filter((item) => item.id !== request.id))
+      if (editingRequestId === request.id) { setEditingRequestId(null); setWork('') }
+      setMessage(data.message)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not remove your hint request.')
+    }
+  }
+
   return (
     <MathJaxContext>
       <div className="app-page">
@@ -77,7 +89,7 @@ function RequestHint({ user, setUser }: Props) {
               <div className="button-row"><button className="primary-button" type="submit" disabled={submitting}>{submitting ? 'Saving…' : editingRequestId ? 'Save changes' : 'Request hint'}</button>{editingRequestId ? <button className="secondary-button" type="button" onClick={() => { setEditingRequestId(null); setWork('') }}>Cancel</button> : null}</div>
             </form>
           ) : <div className="panel empty-state">No problems are accepting hint requests.</div>}
-          {requests.length > 0 ? <section className="hint-history"><h2>Your hint requests</h2><div className="card-list">{requests.map((request) => <article className="simple-card compact-card" key={request.id}><div className="card-title-row"><h3>{request.problem_title}</h3><span className="status">{request.status}</span></div>{request.message ? <MathJax dynamic>{request.message}</MathJax> : null}{request.response ? <div className="hint-response"><strong>Admin response</strong><MathJax dynamic>{request.response}</MathJax></div> : null}{request.status === 'pending' ? <div><button className="secondary-button" type="button" onClick={() => { setEditingRequestId(request.id); setWork(request.message ?? ''); setMessage('Editing your request.') }}>Edit request</button></div> : null}</article>)}</div></section> : null}
+          {requests.length > 0 ? <section className="hint-history"><h2>Your hint requests</h2><div className="card-list">{requests.map((request) => <article className="simple-card compact-card" key={request.id}><div className="card-title-row"><h3>{request.problem_title}</h3><span className="status">{request.status}</span></div>{request.message ? <MathJax dynamic>{request.message}</MathJax> : null}{request.response ? <div className="hint-response"><strong>Admin response</strong><MathJax dynamic>{request.response}</MathJax></div> : null}{request.status === 'pending' ? <div className="button-row"><button className="secondary-button" type="button" onClick={() => { setEditingRequestId(request.id); setWork(request.message ?? ''); setMessage('Editing your request.') }}>Edit request</button><button className="danger-button" type="button" onClick={() => void removeRequest(request)}>Remove request</button></div> : null}</article>)}</div></section> : null}
           {message ? <p className="form-message" role="status">{message}</p> : null}
         </main>
       </div>

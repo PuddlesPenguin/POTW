@@ -837,7 +837,7 @@ app.put('/api/admin/seasons/:id', requireAuth, requireAdmin, async (req, res, ne
 app.get('/api/admin/users', requireAuth, requireSuperuser, async (_req, res, next) => {
   try {
     const result = await query(
-      'SELECT id, username, email, is_admin, is_superuser, created_at FROM users ORDER BY username',
+      'SELECT id, username, email, is_admin, is_superuser, email_verified, created_at FROM users ORDER BY username',
     )
     res.json({ users: result.rows })
   } catch (error) {
@@ -847,11 +847,16 @@ app.get('/api/admin/users', requireAuth, requireSuperuser, async (_req, res, nex
 
 app.patch('/api/admin/users/:id', requireAuth, requireSuperuser, async (req, res, next) => {
   try {
+    const verifyEmail = req.body.email_verified === true
     const result = await query(
-      `UPDATE users SET is_admin = $1
-       WHERE id = $2 AND is_superuser = FALSE
-       RETURNING id, username, email, is_admin, is_superuser`,
-      [Boolean(req.body.is_admin), Number(req.params.id)],
+      `UPDATE users SET is_admin = $1,
+       email_verified = CASE WHEN $2::boolean THEN TRUE ELSE email_verified END,
+       email_verification_token_hash = CASE WHEN $2::boolean THEN NULL ELSE email_verification_token_hash END,
+       email_verification_expires_at = CASE WHEN $2::boolean THEN NULL ELSE email_verification_expires_at END,
+       email_verification_sent_at = CASE WHEN $2::boolean THEN NULL ELSE email_verification_sent_at END
+       WHERE id = $3 AND is_superuser = FALSE
+       RETURNING id, username, email, is_admin, is_superuser, email_verified`,
+      [Boolean(req.body.is_admin), verifyEmail, Number(req.params.id)],
     )
     if (!result.rows[0]) return res.status(400).json({ message: 'That account cannot be changed.' })
     res.json({ user: result.rows[0], message: 'Administrator access updated.' })

@@ -54,7 +54,7 @@ function CurrentProb({ user }: Props) {
   }, [])
 
   useEffect(() => {
-    if (!user) { setRemainingByProblem({}); return }
+    if (!user) return
     apiRequest<{ remaining_by_problem: Record<number, number> }>('/submissions/limits', {}, user)
       .then((data) => setRemainingByProblem(data.remaining_by_problem))
       .catch(() => undefined)

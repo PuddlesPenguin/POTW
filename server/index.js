@@ -218,7 +218,7 @@ app.post('/api/auth/reset-password', emailLimiter, async (req, res, next) => {
     if (password.length < 8) return res.status(400).json({ message: 'Password must be at least 8 characters.' })
     const passwordHash = await bcrypt.hash(password, 12)
     const result = await query(
-      `UPDATE users SET password_hash = $1, email_verified = TRUE,
+      `UPDATE users SET password_hash = $1,
          password_reset_token_hash = NULL, password_reset_expires_at = NULL
        WHERE password_reset_token_hash = $2 AND password_reset_expires_at > CURRENT_TIMESTAMP
        RETURNING id`,

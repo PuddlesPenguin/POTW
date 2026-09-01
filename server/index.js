@@ -310,6 +310,14 @@ app.post('/api/submissions', requireAuth, upload.single('file'), async (req, res
       return res.status(400).json({ message: 'Type your proof or attach a proof file.' })
     }
 
+    const submissionCount = await query(
+      'SELECT COUNT(*)::integer AS count FROM submissions WHERE user_id = $1 AND problem_id = $2',
+      [req.user.id, problemId],
+    )
+    if (submissionCount.rows[0].count >= 5) {
+      return res.status(429).json({ message: 'You have reached the limit of 5 submissions for this problem. You can still edit an existing submission before the deadline.' })
+    }
+
     const result = await query(
       `INSERT INTO submissions
         (user_id, problem_id, answer_text, work_text, file_name, file_type, file_data)
@@ -360,7 +368,7 @@ app.patch('/api/profile/preferences', requireAuth, async (req, res, next) => {
   }
 })
 
-app.patch('/api/submissions/:id', requireAuth, async (req, res, next) => {
+app.patch('/api/submissions/:id', requireAuth, upload.single('file'), async (req, res, next) => {
   try {
     const current = await query(
       `SELECT s.id, s.file_data, p.problem_type FROM submissions s
@@ -378,15 +386,19 @@ app.patch('/api/submissions/:id', requireAuth, async (req, res, next) => {
     const workText = String(req.body.work_text || '').trim()
     const isProof = String(submission.problem_type).toLowerCase().includes('proof')
     if (!isProof && !answerText) return res.status(400).json({ message: 'A short answer is required.' })
-    if (isProof && !workText && !submission.file_data) {
+    const fileData = req.file?.buffer ?? submission.file_data
+    if (isProof && !workText && !fileData) {
       return res.status(400).json({ message: 'A written proof or existing proof file is required.' })
     }
     const result = await query(
       `UPDATE submissions SET answer_text = NULLIF($1, ''), work_text = NULLIF($2, ''),
+         file_name = CASE WHEN $3::boolean THEN $4 ELSE file_name END,
+         file_type = CASE WHEN $3::boolean THEN $5 ELSE file_type END,
+         file_data = CASE WHEN $3::boolean THEN $6 ELSE file_data END,
          is_correct = NULL, score = 0, feedback = NULL, graded_by = NULL, graded_at = NULL,
          submitted_at = CURRENT_TIMESTAMP
-       WHERE id = $3 RETURNING id, answer_text, work_text, submitted_at`,
-      [answerText, workText, submission.id],
+       WHERE id = $7 RETURNING id, answer_text, work_text, file_name, submitted_at`,
+      [answerText, workText, Boolean(req.file), req.file?.originalname ?? null, req.file?.mimetype ?? null, req.file?.buffer ?? null, submission.id],
     )
     res.json({ submission: result.rows[0], message: 'Response updated and returned to the grading queue.' })
   } catch (error) {

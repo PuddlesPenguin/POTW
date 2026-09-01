@@ -77,6 +77,10 @@
 .edit-response { display: grid; gap: 10px; padding: 12px; background: #efe4d1; }
 .edit-response label { display: grid; gap: 6px; font-weight: 700; }
 .edit-response input, .edit-response textarea { width: 100%; padding: 10px; border: 0; border-radius: 3px; background: #fffdf8; color: #332618; resize: vertical; }
+.edit-file-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.edit-file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.edit-file-row label { cursor: pointer; }
+.edit-file-row span { color: #6a5b43; font-size: .92rem; }
 .proposal-history-section { margin-top: 48px; }
 .hint-page { max-width: 720px; }
 .hint-history { margin-top: 42px; }

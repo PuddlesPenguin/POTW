@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MathJax, MathJaxContext } from 'better-react-mathjax'
 import { Link, Navigate } from 'react-router-dom'
 import NavBar from '../components/navbar/NavBar'
@@ -29,7 +29,9 @@ function ViewProfile({ user, setUser }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [draftAnswer, setDraftAnswer] = useState('')
   const [draftWork, setDraftWork] = useState('')
+  const [draftFile, setDraftFile] = useState<File | null>(null)
   const [privacySaving, setPrivacySaving] = useState(false)
+  const editFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!user) return
@@ -47,19 +49,26 @@ function ViewProfile({ user, setUser }: Props) {
     setEditingId(submission.id)
     setDraftAnswer(submission.answer_text ?? '')
     setDraftWork(submission.work_text ?? '')
+    setDraftFile(null)
     setMessage('')
   }
 
   async function saveEdit(submission: Submission) {
     try {
+      const formData = new FormData()
+      formData.set('answer_text', draftAnswer)
+      formData.set('work_text', draftWork)
+      if (draftFile) formData.set('file', draftFile)
       const data = await apiRequest<{ submission: Submission; message: string }>(`/submissions/${submission.id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ answer_text: draftAnswer, work_text: draftWork }),
+        body: formData,
       }, user)
       setSubmissions((current) => current.map((item) => item.id === submission.id
         ? { ...item, ...data.submission, score: 0, feedback: null, graded_at: null }
         : item))
       setEditingId(null)
+      setDraftFile(null)
+      if (editFileInputRef.current) editFileInputRef.current.value = ''
       setMessage(data.message)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not update your response.')
@@ -94,7 +103,7 @@ function ViewProfile({ user, setUser }: Props) {
               <label className="privacy-switch"><span>Anonymous mode</span><input type="checkbox" checked={Boolean(user.leaderboard_hidden)} disabled={privacySaving} onChange={(event) => { void updateLeaderboardPrivacy(event.target.checked) }} /><span className="switch-track" aria-hidden="true"><span /></span></label>
             </div>
           </section>
-          <header className="page-heading"><h1>Your submissions</h1></header>
+          <header className="page-heading"><h1>Your submissions</h1><p>You can edit a current submission before its deadline. Each problem allows up to five submissions.</p></header>
           {message ? <p className="form-message" role="status">{message}</p> : null}
           {!message && submissions.length === 0 ? <div className="panel empty-state">You have not submitted a solution yet. <Link className="page-link" to="/">View this week&apos;s problems.</Link></div> : null}
           <div className="card-list">
@@ -118,8 +127,9 @@ function ViewProfile({ user, setUser }: Props) {
                     <div className="edit-response">
                       {!isProof ? <label>Short answer<input value={draftAnswer} onChange={(event) => setDraftAnswer(event.target.value)} /></label> : null}
                       <label>{isProof ? 'Written proof' : 'Comment / show your work'}<textarea rows={5} value={draftWork} onChange={(event) => setDraftWork(event.target.value)} /></label>
-                      {submission.file_name ? <p className="muted">The existing file stays attached.</p> : null}
-                      <div className="button-row"><button className="primary-button" type="button" onClick={() => saveEdit(submission)}>Save response</button><button className="secondary-button" type="button" onClick={() => setEditingId(null)}>Cancel</button></div>
+                      <div className="edit-file-row"><input ref={editFileInputRef} className="edit-file-input" id={`edit-file-${submission.id}`} type="file" onChange={(event) => setDraftFile(event.target.files?.[0] ?? null)} /><label className="secondary-button" htmlFor={`edit-file-${submission.id}`}>{draftFile ? 'Replace selected file' : submission.file_name ? 'Replace attached file' : 'Upload work file'}</label>{draftFile ? <span>{draftFile.name}</span> : null}</div>
+                      {submission.file_name && !draftFile ? <p className="muted">The existing file stays attached unless you upload a replacement.</p> : null}
+                      <div className="button-row"><button className="primary-button" type="button" onClick={() => saveEdit(submission)}>Save response</button><button className="secondary-button" type="button" onClick={() => { setEditingId(null); setDraftFile(null); if (editFileInputRef.current) editFileInputRef.current.value = '' }}>Cancel</button></div>
                     </div>
                   ) : canEdit ? <button className="secondary-button" type="button" onClick={() => beginEdit(submission)}>Edit response</button> : null}
                 </article>

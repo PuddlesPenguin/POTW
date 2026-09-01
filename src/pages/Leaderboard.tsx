@@ -56,7 +56,7 @@ function Leaderboard({ user, setUser }: Props) {
           {message ? <div className="empty-state">{message}</div> : (
             <table className="simple-table leaderboard-table">
               <thead><tr><th>Rank</th><th>Member</th>{problems.map((problem, index) => <th ref={index === problems.length - 1 ? newestProblemRef : undefined} key={problem.id} title={problem.title}>P{index + 1}</th>)}<th>Total</th></tr></thead>
-              <tbody>{leaders.map((leader, index) => <tr key={leader.id}><td>{index + 1}</td><td>{leader.username}</td>{problems.map((problem) => { const score = leader.scores[problem.id]; const scoreClass = score === null || score === undefined ? 'score-unattempted' : score === 5 ? 'score-correct' : score === 0 ? 'score-incorrect' : ''; return <td className={scoreClass} key={problem.id}>{score === null || score === undefined ? '—' : score}</td> })}<td><strong>{leader.points}</strong></td></tr>)}</tbody>
+              <tbody>{leaders.map((leader, index) => <tr key={leader.id}><td>{index + 1}</td><td>{leader.username}</td>{problems.map((problem) => { const score = leader.scores[problem.id]; const scoreClass = score === null || score === undefined ? 'score-unattempted' : score === 5 ? 'score-correct' : score === 0 ? 'score-incorrect' : 'score-partial'; return <td className={scoreClass} key={problem.id}>{score === null || score === undefined ? '—' : score}</td> })}<td><strong>{leader.points}</strong></td></tr>)}</tbody>
             </table>
           )}
           {!message && leaders.length === 0 ? <div className="empty-state">No solvers are ranked in this season yet.</div> : null}

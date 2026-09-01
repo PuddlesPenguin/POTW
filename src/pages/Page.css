@@ -71,6 +71,7 @@
 .leaderboard-table th:not(:nth-child(2)), .leaderboard-table td:not(:nth-child(2)) { text-align: center; }
 .leaderboard-table td.score-correct { background: #e5f0e1; }
 .leaderboard-table td.score-incorrect { background: #f4e4df; }
+.leaderboard-table td.score-partial { background: #f4e8c6; color: #624c1e; font-weight: 700; }
 .leaderboard-table td.score-unattempted { background: #eeeae2; color: #766d60; }
 .table-wrap { overflow-x: auto; }
 .problem-key { display: grid; gap: 7px; margin-top: 14px; color: #d3c8b6; font-size: .9rem; }

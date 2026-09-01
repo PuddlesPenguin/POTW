@@ -271,14 +271,24 @@ function ProposalsTab({ user }: { user: User }) {
   useEffect(load, [user])
 
   async function setProposalStatus(id: number, status: Proposal['status']) {
-    await apiRequest(`/admin/proposals/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }, user)
-    setProposals((current) => current.map((item) => item.id === id ? { ...item, status } : item))
+    try {
+      await apiRequest(`/admin/proposals/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }, user)
+      setProposals((current) => current.map((item) => item.id === id ? { ...item, status } : item))
+      setMessage('Proposal updated.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not update the proposal.')
+    }
   }
 
   async function respondToHint(hint: HintRequest) {
     const response = hintResponses[hint.id] ?? hint.response ?? ''
-    await apiRequest(`/admin/hint-requests/${hint.id}`, { method: 'PATCH', body: JSON.stringify({ status: response.trim() ? 'resolved' : 'pending', response }) }, user)
-    setHints((current) => current.map((item) => item.id === hint.id ? { ...item, status: response.trim() ? 'resolved' : 'pending', response: response.trim() || null } : item))
+    try {
+      await apiRequest(`/admin/hint-requests/${hint.id}`, { method: 'PATCH', body: JSON.stringify({ status: response.trim() ? 'resolved' : 'pending', response }) }, user)
+      setHints((current) => current.map((item) => item.id === hint.id ? { ...item, status: response.trim() ? 'resolved' : 'pending', response: response.trim() || null } : item))
+      setMessage(response.trim() ? 'Hint response sent.' : 'Hint response cleared.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not send the hint response.')
+    }
   }
 
   return (

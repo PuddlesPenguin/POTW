@@ -443,7 +443,15 @@ app.get('/api/leaderboard', async (req, res, next) => {
     const usersResult = await query(
       `SELECT id, username FROM users
        WHERE is_admin = FALSE AND is_superuser = FALSE AND leaderboard_hidden = FALSE
+         AND EXISTS (
+           SELECT 1 FROM submissions submitted
+           JOIN problems submitted_problem ON submitted_problem.id = submitted.problem_id
+           WHERE submitted.user_id = users.id
+             AND submitted.graded_at IS NOT NULL
+             AND submitted_problem.release_date BETWEEN $1 AND $2
+         )
        ORDER BY username`,
+      [season.start_date, season.end_date],
     )
     const scoresResult = await query(
       `SELECT user_id, problem_id, score
@@ -513,7 +521,15 @@ app.post('/api/problems/:id/hint-requests', requireAuth, async (req, res, next) 
   try {
     const problemId = Number(req.params.id)
     if (!Number.isInteger(problemId)) return res.status(400).json({ message: 'Invalid problem.' })
-    const problem = await query('SELECT allow_hint_requests FROM problems WHERE id = $1', [problemId])
+    const problem = await query(
+      `SELECT allow_hint_requests FROM problems
+       WHERE id = $1 AND is_current = TRUE AND is_archived = FALSE
+         AND ((release_at IS NULL AND (release_date IS NULL OR release_date <= CURRENT_DATE))
+              OR release_at <= CURRENT_TIMESTAMP)
+         AND ((due_at IS NULL AND (due_date IS NULL OR due_date >= CURRENT_DATE))
+              OR due_at >= CURRENT_TIMESTAMP)`,
+      [problemId],
+    )
     if (!problem.rows[0]) return res.status(404).json({ message: 'Problem not found.' })
     if (!problem.rows[0].allow_hint_requests) {
       return res.status(403).json({ message: 'Hint requests are not enabled for this problem.' })

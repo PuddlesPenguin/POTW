@@ -84,6 +84,13 @@
 .hint-problem-picker { display: flex; flex-wrap: wrap; gap: 8px; }
 .hint-problem-picker button { padding: 10px 14px; border: 0; border-radius: 4px; background: #e5d7be; color: #594325; font: inherit; font-weight: 700; cursor: pointer; }
 .hint-problem-picker button.selected { background: #cfb991; color: #2f2616; }
+.hint-review-card { gap: 14px; padding: 18px 20px; }
+.hint-request-message { display: grid; gap: 6px; max-width: 720px; line-height: 1.55; }
+.hint-request-label { color: #6a5b43; font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.hint-response-form { display: grid; gap: 10px; max-width: 720px; padding: 14px; border-radius: 4px; background: #efe4d1; }
+.hint-response-field { display: grid; gap: 7px; color: #493a24; font-size: .95rem; font-weight: 700; }
+.hint-response-field span { color: #6a5b43; font-size: .8rem; font-weight: 600; }
+.hint-response-field textarea { width: 100%; min-height: 108px; padding: 10px; border: 0; border-radius: 3px; resize: vertical; background: #fffdf8; color: #332618; font: inherit; line-height: 1.45; }
 
 @media (max-width: 600px) {
   .page-content { padding-top: 36px; }

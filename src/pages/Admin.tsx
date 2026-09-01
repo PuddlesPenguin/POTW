@@ -310,7 +310,17 @@ function ProposalsTab({ user }: { user: User }) {
       </div>
       <div className="section-heading list-heading"><h2>Hint requests</h2><span className="count-badge">{hints.filter((item) => item.status === 'pending').length} pending</span></div>
       {hints.length === 0 ? <div className="panel empty-state">No hint requests yet.</div> : (
-        <div className="card-list">{hints.map((hint) => <article className="simple-card compact-card" key={hint.id}><div className="card-title-row"><div><span className="status">{hint.status}</span><h3>{hint.problem_title}</h3></div><span className="muted">{hint.username}</span></div>{hint.message ? <MathJax dynamic>{hint.message}</MathJax> : <p className="muted">No message included.</p>}<label>Response (LaTeX supported)<textarea rows={3} value={hintResponses[hint.id] ?? hint.response ?? ''} onChange={(event) => setHintResponses((current) => ({ ...current, [hint.id]: event.target.value }))} placeholder="Write a hint for this solver" /></label><button className="primary-button" type="button" onClick={() => respondToHint(hint)}>{hint.response ? 'Update response' : 'Send response'}</button></article>)}</div>
+        <div className="card-list">{hints.map((hint) => <article className="simple-card hint-review-card" key={hint.id}>
+          <div className="card-title-row"><div><span className="status">{hint.status}</span><h3>{hint.problem_title}</h3></div><span className="muted">{hint.username}</span></div>
+          <div className="hint-request-message">
+            <span className="hint-request-label">What they tried</span>
+            {hint.message ? <MathJax dynamic>{hint.message}</MathJax> : <p className="muted">No message included.</p>}
+          </div>
+          <div className="hint-response-form">
+            <label className="hint-response-field">Your response <span>LaTeX supported</span><textarea rows={4} value={hintResponses[hint.id] ?? hint.response ?? ''} onChange={(event) => setHintResponses((current) => ({ ...current, [hint.id]: event.target.value }))} placeholder="Write a useful next step or hint" /></label>
+            <div><button className="primary-button" type="button" onClick={() => respondToHint(hint)}>{hint.response ? 'Update response' : 'Send response'}</button></div>
+          </div>
+        </article>)}</div>
       )}
     </section>
   )

@@ -777,16 +777,14 @@ app.patch('/api/admin/proposals/:id', requireAuth, requireAdmin, async (req, res
 app.patch('/api/admin/hint-requests/:id', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const status = req.body.status === 'resolved' ? 'resolved' : 'pending'
-    const hasResponse = Object.hasOwn(req.body, 'response')
+    const hasResponse = Object.prototype.hasOwnProperty.call(req.body, 'response')
     const response = String(req.body.response || '').trim()
     const result = await query(
       `UPDATE hint_requests
        SET status = $1,
-           response = CASE WHEN $2::boolean THEN NULLIF($3, '') ELSE response END,
-           responded_at = CASE WHEN $2::boolean THEN CASE WHEN NULLIF($3, '') IS NULL THEN NULL ELSE CURRENT_TIMESTAMP END ELSE responded_at END,
-           responded_by = CASE WHEN $2::boolean THEN CASE WHEN NULLIF($3, '') IS NULL THEN NULL ELSE $4 END ELSE responded_by END
-       WHERE id = $5 RETURNING id, status, response, responded_at`,
-      [status, hasResponse, response, req.user.id, Number(req.params.id)],
+           response = CASE WHEN $2::boolean THEN NULLIF($3, '') ELSE response END
+       WHERE id = $4 RETURNING id, status, response`,
+      [status, hasResponse, response, Number(req.params.id)],
     )
     if (!result.rows[0]) return res.status(404).json({ message: 'Hint request not found.' })
     res.json({ hint_request: result.rows[0], message: 'Hint request updated.' })

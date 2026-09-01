@@ -1,5 +1,5 @@
 import FrontPage from './pages/FrontPage'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import type { UserState } from './types/user'
 import Login from './pages/auth/Login'
@@ -38,6 +38,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<FrontPage user={user} setUser={setUser} />} />
         <Route path="/login" element={<Login user={user} setUser={setUser} />} />
@@ -55,6 +56,16 @@ function App() {
       </Routes>
     </BrowserRouter>
   )
+}
+
+function ScrollToTop() {
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [pathname])
+
+  return null
 }
 
 export default App

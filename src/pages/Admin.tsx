@@ -261,6 +261,7 @@ function ProposalsTab({ user }: { user: User }) {
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [hints, setHints] = useState<HintRequest[]>([])
   const [hintResponses, setHintResponses] = useState<Record<number, string>>({})
+  const [hintMessage, setHintMessage] = useState('')
   const [message, setMessage] = useState('Loading proposals…')
 
   function load() {
@@ -282,12 +283,26 @@ function ProposalsTab({ user }: { user: User }) {
 
   async function respondToHint(hint: HintRequest) {
     const response = hintResponses[hint.id] ?? hint.response ?? ''
+    if (!response.trim()) {
+      setHintMessage('Write a response first, or use Mark resolved if no response is needed.')
+      return
+    }
     try {
-      await apiRequest(`/admin/hint-requests/${hint.id}`, { method: 'PATCH', body: JSON.stringify({ status: response.trim() ? 'resolved' : 'pending', response }) }, user)
-      setHints((current) => current.map((item) => item.id === hint.id ? { ...item, status: response.trim() ? 'resolved' : 'pending', response: response.trim() || null } : item))
-      setMessage(response.trim() ? 'Hint response sent.' : 'Hint response cleared.')
+      await apiRequest(`/admin/hint-requests/${hint.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'resolved', response }) }, user)
+      setHints((current) => current.map((item) => item.id === hint.id ? { ...item, status: 'resolved', response: response.trim() } : item))
+      setHintMessage('Hint response sent and marked resolved.')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not send the hint response.')
+      setHintMessage(error instanceof Error ? error.message : 'Could not send the hint response.')
+    }
+  }
+
+  async function setHintStatus(hint: HintRequest, status: 'pending' | 'resolved') {
+    try {
+      await apiRequest(`/admin/hint-requests/${hint.id}`, { method: 'PATCH', body: JSON.stringify({ status }) }, user)
+      setHints((current) => current.map((item) => item.id === hint.id ? { ...item, status } : item))
+      setHintMessage(status === 'resolved' ? 'Hint request marked resolved.' : 'Hint request reopened.')
+    } catch (error) {
+      setHintMessage(error instanceof Error ? error.message : 'Could not update the hint request.')
     }
   }
 
@@ -318,10 +333,11 @@ function ProposalsTab({ user }: { user: User }) {
           </div>
           <div className="hint-response-form">
             <label className="hint-response-field">Your response <span>LaTeX supported</span><textarea rows={4} value={hintResponses[hint.id] ?? hint.response ?? ''} onChange={(event) => setHintResponses((current) => ({ ...current, [hint.id]: event.target.value }))} placeholder="Write a useful next step or hint" /></label>
-            <div><button className="primary-button" type="button" onClick={() => respondToHint(hint)}>{hint.response ? 'Update response' : 'Send response'}</button></div>
+            <div className="button-row"><button className="primary-button" type="button" onClick={() => respondToHint(hint)}>{hint.response ? 'Update response' : 'Send response'}</button>{hint.status === 'pending' ? <button className="secondary-button" type="button" onClick={() => setHintStatus(hint, 'resolved')}>Mark resolved</button> : <button className="secondary-button" type="button" onClick={() => setHintStatus(hint, 'pending')}>Reopen</button>}</div>
           </div>
         </article>)}</div>
       )}
+      {hintMessage ? <p className="form-message" role="status">{hintMessage}</p> : null}
     </section>
   )
 }

@@ -507,11 +507,31 @@ app.post('/api/problem-proposals', requireAuth, async (req, res, next) => {
 app.get('/api/problem-proposals/mine', requireAuth, async (req, res, next) => {
   try {
     const result = await query(
-      `SELECT id, title, status, created_at FROM problem_proposals
+      `SELECT id, title, statement_latex, solution_latex, source, notes, status, created_at FROM problem_proposals
        WHERE user_id = $1 ORDER BY created_at DESC`,
       [req.user.id],
     )
     res.json({ proposals: result.rows })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.patch('/api/problem-proposals/:id', requireAuth, async (req, res, next) => {
+  try {
+    const title = String(req.body.title || '').trim()
+    const statement = String(req.body.statement_latex || '').trim()
+    if (!title || !statement) return res.status(400).json({ message: 'A title and problem statement are required.' })
+    const result = await query(
+      `UPDATE problem_proposals
+       SET title = $1, statement_latex = $2, solution_latex = NULLIF($3, ''),
+           source = NULLIF($4, ''), notes = NULLIF($5, '')
+       WHERE id = $6 AND user_id = $7 AND status = 'pending'
+       RETURNING id, title, statement_latex, solution_latex, source, notes, status, created_at`,
+      [title, statement, String(req.body.solution_latex || '').trim(), String(req.body.source || '').trim(), String(req.body.notes || '').trim(), Number(req.params.id), req.user.id],
+    )
+    if (!result.rows[0]) return res.status(404).json({ message: 'Only a pending proposal of your own can be edited.' })
+    res.json({ proposal: result.rows[0], message: 'Proposal updated.' })
   } catch (error) {
     next(error)
   }
@@ -561,6 +581,23 @@ app.get('/api/hint-requests/mine', requireAuth, async (req, res, next) => {
     )
     res.json({ hint_requests: result.rows })
   } catch (error) { next(error) }
+})
+
+app.patch('/api/hint-requests/:id', requireAuth, async (req, res, next) => {
+  try {
+    const message = String(req.body.message || '').trim()
+    if (!message) return res.status(400).json({ message: 'Describe what you have tried before saving your request.' })
+    const result = await query(
+      `UPDATE hint_requests SET message = $1
+       WHERE id = $2 AND user_id = $3 AND status = 'pending'
+       RETURNING id, message, status, created_at`,
+      [message, Number(req.params.id), req.user.id],
+    )
+    if (!result.rows[0]) return res.status(404).json({ message: 'Only a pending request of your own can be edited.' })
+    res.json({ hint_request: result.rows[0], message: 'Hint request updated.' })
+  } catch (error) {
+    next(error)
+  }
 })
 
 app.get('/api/admin/submissions', requireAuth, requireAdmin, async (req, res, next) => {
@@ -740,12 +777,16 @@ app.patch('/api/admin/proposals/:id', requireAuth, requireAdmin, async (req, res
 app.patch('/api/admin/hint-requests/:id', requireAuth, requireAdmin, async (req, res, next) => {
   try {
     const status = req.body.status === 'resolved' ? 'resolved' : 'pending'
+    const hasResponse = Object.hasOwn(req.body, 'response')
+    const response = String(req.body.response || '').trim()
     const result = await query(
       `UPDATE hint_requests
-       SET status = $1, response = NULLIF($2, ''), responded_at = CASE WHEN NULLIF($2, '') IS NULL THEN NULL ELSE CURRENT_TIMESTAMP END,
-           responded_by = CASE WHEN NULLIF($2, '') IS NULL THEN NULL ELSE $3 END
-       WHERE id = $4 RETURNING id, status, response, responded_at`,
-      [status, String(req.body.response || '').trim(), req.user.id, Number(req.params.id)],
+       SET status = $1,
+           response = CASE WHEN $2::boolean THEN NULLIF($3, '') ELSE response END,
+           responded_at = CASE WHEN $2::boolean THEN CASE WHEN NULLIF($3, '') IS NULL THEN NULL ELSE CURRENT_TIMESTAMP END ELSE responded_at END,
+           responded_by = CASE WHEN $2::boolean THEN CASE WHEN NULLIF($3, '') IS NULL THEN NULL ELSE $4 END ELSE responded_by END
+       WHERE id = $5 RETURNING id, status, response, responded_at`,
+      [status, hasResponse, response, req.user.id, Number(req.params.id)],
     )
     if (!result.rows[0]) return res.status(404).json({ message: 'Hint request not found.' })
     res.json({ hint_request: result.rows[0], message: 'Hint request updated.' })

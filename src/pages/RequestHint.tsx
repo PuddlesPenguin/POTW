@@ -15,6 +15,7 @@ function RequestHint({ user, setUser }: Props) {
   const [problems, setProblems] = useState<Problem[]>([])
   const [problemId, setProblemId] = useState('')
   const [work, setWork] = useState('')
+  const [editingRequestId, setEditingRequestId] = useState<number | null>(null)
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [requests, setRequests] = useState<HintRequest[]>([])
@@ -43,10 +44,13 @@ function RequestHint({ user, setUser }: Props) {
     setSubmitting(true)
     setMessage('')
     try {
-      const data = await apiRequest<{ message: string }>(`/problems/${problemId}/hint-requests`, {
-        method: 'POST', body: JSON.stringify({ message: work }),
-      }, user)
+      const data = await apiRequest<{ message: string }>(
+        editingRequestId ? `/hint-requests/${editingRequestId}` : `/problems/${problemId}/hint-requests`,
+        { method: editingRequestId ? 'PATCH' : 'POST', body: JSON.stringify({ message: work }) },
+        user,
+      )
       setWork('')
+      setEditingRequestId(null)
       setMessage(data.message)
       const refreshed = await apiRequest<{ hint_requests: HintRequest[] }>('/hint-requests/mine', {}, user)
       setRequests(refreshed.hint_requests)
@@ -70,10 +74,10 @@ function RequestHint({ user, setUser }: Props) {
               </div>
               <label>What have you tried?<textarea rows={7} value={work} onChange={(event) => setWork(event.target.value)} required /></label>
               {work ? <div className="latex-preview"><strong>Preview</strong><MathJax dynamic>{work}</MathJax></div> : null}
-              <button className="primary-button" type="submit" disabled={submitting}>{submitting ? 'Sending…' : 'Request hint'}</button>
+              <div className="button-row"><button className="primary-button" type="submit" disabled={submitting}>{submitting ? 'Saving…' : editingRequestId ? 'Save changes' : 'Request hint'}</button>{editingRequestId ? <button className="secondary-button" type="button" onClick={() => { setEditingRequestId(null); setWork('') }}>Cancel</button> : null}</div>
             </form>
           ) : <div className="panel empty-state">No problems are accepting hint requests.</div>}
-          {requests.length > 0 ? <section className="hint-history"><h2>Your hint requests</h2><div className="card-list">{requests.map((request) => <article className="simple-card compact-card" key={request.id}><div className="card-title-row"><h3>{request.problem_title}</h3><span className="status">{request.status}</span></div>{request.message ? <MathJax dynamic>{request.message}</MathJax> : null}{request.response ? <div className="hint-response"><strong>Admin response</strong><MathJax dynamic>{request.response}</MathJax></div> : null}</article>)}</div></section> : null}
+          {requests.length > 0 ? <section className="hint-history"><h2>Your hint requests</h2><div className="card-list">{requests.map((request) => <article className="simple-card compact-card" key={request.id}><div className="card-title-row"><h3>{request.problem_title}</h3><span className="status">{request.status}</span></div>{request.message ? <MathJax dynamic>{request.message}</MathJax> : null}{request.response ? <div className="hint-response"><strong>Admin response</strong><MathJax dynamic>{request.response}</MathJax></div> : null}{request.status === 'pending' ? <div><button className="secondary-button" type="button" onClick={() => { setEditingRequestId(request.id); setWork(request.message ?? ''); setMessage('Editing your request.') }}>Edit request</button></div> : null}</article>)}</div></section> : null}
           {message ? <p className="form-message" role="status">{message}</p> : null}
         </main>
       </div>

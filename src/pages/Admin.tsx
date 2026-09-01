@@ -394,6 +394,8 @@ function UsersTab({ user }: { user: User }) {
   }
 
   async function verify(account: ManagedUser) {
+    const confirmed = window.confirm(`Manually verify ${account.email}? This lets them log in without clicking an email link.`)
+    if (!confirmed) return
     try {
       const data = await apiRequest<{ user: ManagedUser; message: string }>(`/admin/users/${account.id}`, { method: 'PATCH', body: JSON.stringify({ is_admin: account.is_admin, email_verified: true }) }, user)
       setUsers((current) => current.map((item) => item.id === account.id ? data.user : item))
@@ -404,7 +406,7 @@ function UsersTab({ user }: { user: User }) {
   }
 
   return (
-    <section className="admin-section"><div className="section-heading"><div><h2>User access</h2><p className="muted">Only the superuser can manage accounts.</p></div></div>{message ? <p className="form-message">{message}</p> : null}<div className="panel table-wrap"><table className="simple-table"><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead><tbody>{users.map((account) => <tr key={account.id}><td>{account.username}</td><td>{account.email}{account.email_verified ? null : <span className="muted"> · unverified</span>}</td><td>{account.is_superuser ? 'Superuser' : account.is_admin ? 'Admin' : 'Solver'}</td><td>{account.is_superuser ? <span className="status">Protected</span> : <div className="button-row">{!account.email_verified ? <button className="secondary-button" type="button" onClick={() => verify(account)}>Verify email</button> : null}<button className="secondary-button" type="button" onClick={() => toggle(account)}>{account.is_admin ? 'Remove admin' : 'Make admin'}</button><button className="danger-button" type="button" onClick={() => remove(account)}>Delete account</button></div>}</td></tr>)}</tbody></table></div></section>
+    <section className="admin-section"><div className="section-heading"><div><h2>User access</h2><p className="muted">Only the superuser can manage accounts.</p></div></div>{message ? <p className="form-message">{message}</p> : null}<div className="panel table-wrap"><table className="simple-table"><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead><tbody>{users.map((account) => <tr key={account.id}><td>{account.username}</td><td>{account.email}{account.email_verified ? null : <span className="muted"> · unverified</span>}</td><td>{account.is_superuser ? 'Superuser' : account.is_admin ? 'Admin' : 'Solver'}</td><td>{account.is_superuser ? <span className="status">Protected</span> : <div className="button-row">{!account.email_verified ? <button className="secondary-button" type="button" onClick={() => verify(account)}>Manual override</button> : null}<button className="secondary-button" type="button" onClick={() => toggle(account)}>{account.is_admin ? 'Remove admin' : 'Make admin'}</button><button className="danger-button" type="button" onClick={() => remove(account)}>Delete account</button></div>}</td></tr>)}</tbody></table></div></section>
   )
 }
 

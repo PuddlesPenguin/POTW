@@ -34,6 +34,7 @@ function CurrentProb({ user }: Props) {
   const [answerText, setAnswerText] = useState('')
   const [workText, setWorkText] = useState('')
   const [workOpen, setWorkOpen] = useState(false)
+  const [visibleHints, setVisibleHints] = useState<Set<number>>(() => new Set())
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -134,6 +135,15 @@ function CurrentProb({ user }: Props) {
               </div>
               <div className="problem-statement"><MathJax dynamic>{activeProblem.statement_latex}</MathJax></div>
               {activeProblem.proposed_by ? <p className="proposer-thanks">Thank you to {activeProblem.proposed_by} for suggesting this problem.</p> : null}
+              {activeProblem.hints_enabled && activeProblem.hints ? <section className="published-hint">
+                <button className="show-hint-button" type="button" onClick={() => setVisibleHints((current) => {
+                  const next = new Set(current)
+                  if (next.has(activeProblem.id)) next.delete(activeProblem.id)
+                  else next.add(activeProblem.id)
+                  return next
+                })}>{visibleHints.has(activeProblem.id) ? 'Hide hint' : 'Show hint'}</button>
+                {visibleHints.has(activeProblem.id) ? <div className="response-preview"><strong>Hint</strong><MathJax dynamic>{activeProblem.hints}</MathJax></div> : null}
+              </section> : null}
 
               <section className="solution-section">
                 <h3>Your solution</h3>

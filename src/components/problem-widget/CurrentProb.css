@@ -47,6 +47,9 @@
 .response-preview { padding: 11px; border-radius: 4px; background: #fffaf1; line-height: 1.5; overflow-x: auto; }
 .response-preview > strong { display: block; margin-bottom: 5px; color: #6a5b43; font-size: .9rem; }
 .proposer-thanks { margin: -3px 0 0; color: #6a5b43; font-size: 1rem; font-style: italic; }
+.published-hint { display: grid; gap: 10px; padding-top: 16px; border-top: 1px solid #d9ccb3; }
+.show-hint-button { width: fit-content; padding: 9px 13px; border: 0; border-radius: 4px; background: #e5d7be; color: #594325; font: inherit; font-weight: 700; cursor: pointer; }
+.show-hint-button:hover { background: #eee2cd; }
 
 @media (max-width: 600px) {
   .current-prob-content { padding: 18px; }

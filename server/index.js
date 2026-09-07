@@ -273,7 +273,7 @@ app.get('/api/problems/current', async (_req, res, next) => {
 app.get('/api/problems/archive', async (_req, res, next) => {
   try {
     const result = await query(
-      `SELECT ${publicProblemColumns} FROM problems
+      `SELECT ${publicProblemColumns}, solution_latex FROM problems
        WHERE release_date IS NOT NULL
          AND ((release_at IS NULL AND release_date <= CURRENT_DATE) OR release_at <= CURRENT_TIMESTAMP)
          AND (is_archived = TRUE OR is_current = FALSE

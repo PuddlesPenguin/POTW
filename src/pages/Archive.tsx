@@ -11,7 +11,17 @@ type Props = { user: UserState; setUser: SetUser }
 
 function Archive({ user, setUser }: Props) {
   const [problems, setProblems] = useState<Problem[]>([])
+  const [visibleSolutions, setVisibleSolutions] = useState<Set<number>>(new Set())
   const [message, setMessage] = useState('Loading archived problems…')
+
+  function toggleSolution(problemId: number) {
+    setVisibleSolutions((current) => {
+      const next = new Set(current)
+      if (next.has(problemId)) next.delete(problemId)
+      else next.add(problemId)
+      return next
+    })
+  }
 
   useEffect(() => {
     apiRequest<{ problems: Problem[] }>('/problems/archive')
@@ -34,6 +44,24 @@ function Archive({ user, setUser }: Props) {
                 <h2>{problem.title}</h2>
                 <p className="muted">Released {problem.release_at ? formatTimestamp(problem.release_at) : formatDate(problem.release_date)} · Due {problem.due_at ? formatTimestamp(problem.due_at) : formatDate(problem.due_date)} · Difficulty {problem.difficulty_rating ?? '—'}/10</p>
                 <div><MathJax dynamic>{problem.statement_latex}</MathJax></div>
+                {problem.solution_latex?.trim() ? (
+                  <>
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      aria-expanded={visibleSolutions.has(problem.id)}
+                      onClick={() => toggleSolution(problem.id)}
+                    >
+                      {visibleSolutions.has(problem.id) ? 'Hide solution' : 'Show solution'}
+                    </button>
+                    {visibleSolutions.has(problem.id) ? (
+                      <div className="latex-preview solution-preview">
+                        <strong>Solution</strong>
+                        <MathJax dynamic>{problem.solution_latex}</MathJax>
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
                 {problem.problem_source ? <p className="muted">Source: {problem.problem_source}</p> : null}
               </article>
             ))}

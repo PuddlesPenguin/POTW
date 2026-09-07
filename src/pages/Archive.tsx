@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { MathJax, MathJaxContext } from 'better-react-mathjax'
+import { MathJaxContext } from 'better-react-mathjax'
 import NavBar from '../components/navbar/NavBar'
+import Latex from '../components/Latex'
 import { apiRequest } from '../lib/api'
+import { mathJaxConfig } from '../lib/mathjax'
 import type { Problem } from '../types/problem'
 import { formatDate, formatTimestamp } from '../types/problem'
 import type { SetUser, UserState } from '../types/user'
@@ -30,7 +32,7 @@ function Archive({ user, setUser }: Props) {
   }, [])
 
   return (
-    <MathJaxContext>
+    <MathJaxContext config={mathJaxConfig} version={4}>
       <div className="app-page">
         <NavBar user={user} setUser={setUser} />
         <main className="page-content">
@@ -43,7 +45,7 @@ function Archive({ user, setUser }: Props) {
                 <span className="status">{problem.problem_type}</span>
                 <h2>{problem.title}</h2>
                 <p className="muted">Released {problem.release_at ? formatTimestamp(problem.release_at) : formatDate(problem.release_date)} · Due {problem.due_at ? formatTimestamp(problem.due_at) : formatDate(problem.due_date)} · Difficulty {problem.difficulty_rating ?? '—'}/10</p>
-                <div><MathJax dynamic>{problem.statement_latex}</MathJax></div>
+                <div><Latex>{problem.statement_latex}</Latex></div>
                 {problem.solution_latex?.trim() ? (
                   <>
                     <button
@@ -57,7 +59,7 @@ function Archive({ user, setUser }: Props) {
                     {visibleSolutions.has(problem.id) ? (
                       <div className="latex-preview solution-preview">
                         <strong>Solution</strong>
-                        <MathJax dynamic>{problem.solution_latex}</MathJax>
+                        <Latex>{problem.solution_latex}</Latex>
                       </div>
                     ) : null}
                   </>

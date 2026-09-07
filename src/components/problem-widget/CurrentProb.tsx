@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { MathJax, MathJaxContext } from 'better-react-mathjax'
+import { MathJaxContext } from 'better-react-mathjax'
 import { apiRequest } from '../../lib/api'
+import Latex from '../Latex'
+import { mathJaxConfig } from '../../lib/mathjax'
 import type { Problem } from '../../types/problem'
 import { formatDueTime } from '../../types/problem'
 import type { UserState } from '../../types/user'
@@ -10,10 +12,6 @@ import './CurrentProb.css'
 
 type Props = { user: UserState }
 type ProblemType = 'Computational' | 'Proof-based'
-
-const mathJaxConfig = {
-  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
-}
 
 function getProblemType(problemType: string): ProblemType {
   return problemType.toLowerCase().includes('proof') ? 'Proof-based' : 'Computational'
@@ -142,7 +140,7 @@ function CurrentProb({ user }: Props) {
               <div className="problem-meta">
                 <span><strong>Due</strong> {formatDueTime(activeProblem.due_at, activeProblem.due_date)}</span>
               </div>
-              <div className="problem-statement"><MathJax dynamic>{activeProblem.statement_latex}</MathJax></div>
+              <div className="problem-statement"><Latex>{activeProblem.statement_latex}</Latex></div>
               {activeProblem.proposed_by ? <p className="proposer-thanks">Thank you to {activeProblem.proposed_by} for suggesting this problem.</p> : null}
               {activeProblem.hints_enabled && activeProblem.hints ? <section className="published-hint">
                 <button className="show-hint-button" type="button" onClick={() => setVisibleHints((current) => {
@@ -151,7 +149,7 @@ function CurrentProb({ user }: Props) {
                   else next.add(activeProblem.id)
                   return next
                 })}>{visibleHints.has(activeProblem.id) ? 'Hide hint' : 'Show hint'}</button>
-                {visibleHints.has(activeProblem.id) ? <div className="response-preview"><strong>Hint</strong><MathJax dynamic>{activeProblem.hints}</MathJax></div> : null}
+                {visibleHints.has(activeProblem.id) ? <div className="response-preview"><strong>Hint</strong><Latex>{activeProblem.hints}</Latex></div> : null}
               </section> : null}
 
               <section className="solution-section">
@@ -162,7 +160,7 @@ function CurrentProb({ user }: Props) {
                   {!isProof ? (
                     <>
                       <input aria-label="Short answer" id="answer" value={answerText} onChange={(event) => setAnswerText(event.target.value)} placeholder="Enter your final answer. LaTeX is supported." required />
-                      {answerText ? <div className="response-preview"><strong>Answer preview</strong><MathJax dynamic>{answerText}</MathJax></div> : null}
+                      {answerText ? <div className="response-preview"><strong>Answer preview</strong><Latex>{answerText}</Latex></div> : null}
                     </>
                   ) : null}
                   <div className="work-choice">
@@ -175,7 +173,7 @@ function CurrentProb({ user }: Props) {
                     <label htmlFor="work-text">{isProof ? 'Written proof' : 'Comment / shown work'}
                       <textarea id="work-text" value={workText} onChange={(event) => setWorkText(event.target.value)} placeholder={isProof ? 'Type your proof here. LaTeX is supported.' : 'Explain your approach or calculations. LaTeX is supported.'} rows={isProof ? 8 : 5} autoFocus />
                     </label>
-                    {workText ? <div className="response-preview"><strong>Work preview</strong><MathJax dynamic>{workText}</MathJax></div> : null}
+                    {workText ? <div className="response-preview"><strong>Work preview</strong><Latex>{workText}</Latex></div> : null}
                   </div> : null}
                   <div className="answer-actions">
                     {selectedFile ? <span>Attached: {selectedFile.name}</span> : null}

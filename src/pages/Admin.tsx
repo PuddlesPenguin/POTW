@@ -29,6 +29,21 @@ type ManagedUser = { id: number; username: string; email: string; is_admin: bool
 
 const releaseTimeZone = 'America/Indiana/Indianapolis'
 
+function congratulationsMessage(submissions: Submission[]) {
+  const namesFor = (isProof: boolean) => [...new Set(
+    submissions
+      .filter((submission) => submission.score === 5 && submission.problem_type.toLowerCase().includes('proof') === isProof)
+      .map((submission) => submission.username),
+  )]
+  const computational = namesFor(false)
+  const proof = namesFor(true)
+  const parts = [
+    computational.length > 0 ? `Congratulations to ${computational.join(', ')} for solving the computational problem` : '',
+    proof.length > 0 ? `Congratulations to ${proof.join(', ')} for solving the proof-based problem` : '',
+  ].filter(Boolean)
+  return parts.length > 0 ? `${parts.join(' and ')}.` : ''
+}
+
 function defaultReleaseTime() {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
     timeZone: releaseTimeZone, year: 'numeric', month: '2-digit', day: '2-digit',
@@ -132,6 +147,13 @@ function GradingTab({ user }: { user: User }) {
 
   function updateGrade(id: number, field: 'score' | 'feedback', value: string) {
     setGrades((current) => ({ ...current, [id]: { score: current[id]?.score ?? '0', feedback: current[id]?.feedback ?? '', [field]: value } }))
+  }
+
+  async function copyCongratulations() {
+    const text = congratulationsMessage(submissions)
+    if (!text) return
+    await navigator.clipboard.writeText(text)
+    setMessage('Congratulations message copied.')
   }
 
   async function removeSubmission(submission: Submission) {

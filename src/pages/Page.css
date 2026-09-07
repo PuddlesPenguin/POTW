@@ -60,6 +60,9 @@
 .card-title-row h3 { font-size: 1.12rem; }
 .button-row { display: flex; flex-wrap: wrap; gap: 9px; }
 .copy-button { margin-top: 10px; }
+.copy-message-panel { display: grid; gap: 12px; }
+.copy-message-panel h3 { font-size: 1.15rem; }
+.copy-message-text { width: 100%; min-height: 78px; padding: 10px; border: 1px solid #b9aa8d; border-radius: 4px; background: #fffdf8; color: #332618; line-height: 1.45; resize: vertical; }
 .answer-box { display: grid; gap: 8px; padding: 13px; background: #fffaf1; }
 .grade-row { display: grid; grid-template-columns: 120px minmax(180px, 1fr) auto; align-items: end; gap: 12px; }
 .admin-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 12px; }

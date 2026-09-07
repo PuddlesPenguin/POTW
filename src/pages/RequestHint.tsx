@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { MathJax, MathJaxContext } from 'better-react-mathjax'
 import { Navigate } from 'react-router-dom'
 import NavBar from '../components/navbar/NavBar'
+import { mathJaxConfig } from '../lib/mathjax'
 import { apiRequest } from '../lib/api'
 import type { Problem } from '../types/problem'
 import type { SetUser, UserState } from '../types/user'
@@ -74,7 +75,7 @@ function RequestHint({ user, setUser }: Props) {
   }
 
   return (
-    <MathJaxContext>
+    <MathJaxContext config={mathJaxConfig} version={4}>
       <div className="app-page">
         <NavBar user={user} setUser={setUser} />
         <main className="page-content hint-page">

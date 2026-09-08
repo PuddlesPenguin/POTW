@@ -134,7 +134,7 @@ function CurrentProb({ user }: Props) {
           {activeProblem ? (
             <article className="problem-card">
               <div className="problem-title-row">
-                <h2>{activeProblem.title}</h2>
+                <h2>{activeProblem.problem_number ? `P${activeProblem.problem_number}: ` : ''}{activeProblem.title}</h2>
                 {activeProblem.difficulty_rating ? <span className={`difficulty-pill ${difficultyClass(activeProblem.difficulty_rating)}`}>Difficulty {activeProblem.difficulty_rating}/10</span> : null}
               </div>
               <div className="problem-meta">

@@ -7,7 +7,7 @@ import './Page.css'
 
 type Props = { user: UserState; setUser: SetUser }
 type Season = { id: number; name: string; start_date: string; end_date: string; is_active: boolean }
-type LeaderboardProblem = { id: number; title: string; problem_type: string; release_date: string }
+type LeaderboardProblem = { id: number; title: string; problem_type: string; release_date: string; problem_number?: number | null }
 type Leader = { id: number; username: string; solved: number; points: number; scores: Record<string, number | null> }
 
 function Leaderboard({ user, setUser }: Props) {
@@ -55,13 +55,13 @@ function Leaderboard({ user, setUser }: Props) {
         <div className="panel table-wrap">
           {message ? <div className="empty-state">{message}</div> : (
             <table className="simple-table leaderboard-table">
-              <thead><tr><th>Rank</th><th>Member</th>{problems.map((problem, index) => <th ref={index === problems.length - 1 ? newestProblemRef : undefined} key={problem.id} title={problem.title}>P{index + 1}</th>)}<th>Total</th></tr></thead>
+              <thead><tr><th>Rank</th><th>Member</th>{problems.map((problem, index) => <th ref={index === problems.length - 1 ? newestProblemRef : undefined} key={problem.id} title={problem.title}>P{problem.problem_number ?? index + 1}</th>)}<th>Total</th></tr></thead>
               <tbody>{leaders.map((leader, index) => <tr key={leader.id}><td>{index + 1}</td><td>{leader.username}</td>{problems.map((problem) => { const score = leader.scores[problem.id]; const scoreClass = score === null || score === undefined ? 'score-unattempted' : score === 5 ? 'score-correct' : score === 0 ? 'score-incorrect' : 'score-partial'; return <td className={scoreClass} key={problem.id}>{score === null || score === undefined ? '—' : score}</td> })}<td><strong>{leader.points}</strong></td></tr>)}</tbody>
             </table>
           )}
           {!message && leaders.length === 0 ? <div className="empty-state">No solvers are ranked in this season yet.</div> : null}
         </div>
-        {!message && problems.length > 0 ? <div className="problem-key">{problems.map((problem, index) => <span key={problem.id}><strong>P{index + 1}</strong> {problem.title}</span>)}</div> : null}
+        {!message && problems.length > 0 ? <div className="problem-key">{problems.map((problem, index) => <span key={problem.id}><strong>P{problem.problem_number ?? index + 1}</strong> {problem.title}</span>)}</div> : null}
       </main>
     </div>
   )

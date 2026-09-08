@@ -73,7 +73,7 @@ function newProblemForm() {
   const dueAt = `${dueDate.toISOString().slice(0, 10)}T18:00`
   return {
     title: '', statement_latex: '', solution_latex: '', problem_source: '', proposed_by: '',
-    problem_type: 'Computational', release_date: releaseAt.slice(0, 10), release_at: releaseAt, due_date: dueAt.slice(0, 10), due_at: dueAt, hints: '', difficulty_rating: '',
+    problem_type: 'Computational', release_date: releaseAt.slice(0, 10), release_at: releaseAt, due_date: dueAt.slice(0, 10), due_at: dueAt, hints: '', difficulty_rating: '', problem_number: '',
     is_current: true, is_archived: false, hints_enabled: true, allow_hint_requests: true,
   }
 }
@@ -175,6 +175,13 @@ function GradingTab({ user }: { user: User }) {
         <button className={showAll ? 'primary-button' : 'secondary-button'} type="button" onClick={() => setShowAll(true)}>All submissions</button>
       </div>
       {message ? <p className="form-message" role="status">{message}</p> : null}
+      {showAll && congratulationsMessage(submissions) ? (
+        <div className="panel copy-message-panel">
+          <div className="section-heading"><div><h3>Congratulations message</h3><p className="muted">Generated from submissions graded 5/5 below.</p></div></div>
+          <textarea className="copy-message-text" readOnly value={congratulationsMessage(submissions)} aria-label="Congratulations message" />
+          <button className="secondary-button" type="button" onClick={() => void copyCongratulations()}>Copy message</button>
+        </div>
+      ) : null}
       {!message && submissions.length === 0 ? <div className="panel empty-state">{showAll ? 'No submissions yet.' : 'Everything is graded.'}</div> : null}
       <div className="card-list">
         {submissions.map((submission) => {
@@ -224,7 +231,7 @@ function ProblemsTab({ user }: { user: User }) {
       problem_source: problem.problem_source ?? '', proposed_by: problem.proposed_by ?? '', problem_type: problem.problem_type,
       release_date: problem.release_date?.slice(0, 10) ?? '', release_at: localScheduledTime(problem.release_at, defaultReleaseTime()),
       due_date: problem.due_date?.slice(0, 10) ?? '', due_at: localScheduledTime(problem.due_at), hints: problem.hints ?? '',
-      difficulty_rating: problem.difficulty_rating ? String(problem.difficulty_rating) : '', is_current: problem.is_current, is_archived: problem.is_archived,
+      difficulty_rating: problem.difficulty_rating ? String(problem.difficulty_rating) : '', problem_number: problem.problem_number ? String(problem.problem_number) : '', is_current: problem.is_current, is_archived: problem.is_archived,
       hints_enabled: problem.hints_enabled, allow_hint_requests: problem.allow_hint_requests,
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -269,7 +276,7 @@ function ProblemsTab({ user }: { user: User }) {
         <label>Solution (LaTeX)<textarea rows={6} value={form.solution_latex} onChange={(event) => update('solution_latex', event.target.value)} /></label>
         <div className="latex-preview"><strong>Solution preview</strong><MathJax dynamic>{form.solution_latex || 'Your rendered solution will appear here.'}</MathJax></div>
         <div className="form-grid"><label>Release date and time (Eastern)<input type="datetime-local" value={form.release_at} onChange={(event) => setForm((current) => ({ ...current, release_at: event.target.value, release_date: event.target.value.slice(0, 10) }))} required /></label><label>Due date and time (Eastern)<input type="datetime-local" value={form.due_at} onChange={(event) => setForm((current) => ({ ...current, due_at: event.target.value, due_date: event.target.value.slice(0, 10) }))} /></label></div>
-        <div className="form-grid"><label>Difficulty (1–10)<input type="number" min="1" max="10" value={form.difficulty_rating} onChange={(event) => update('difficulty_rating', event.target.value)} /></label><label>Source<input value={form.problem_source} onChange={(event) => update('problem_source', event.target.value)} /></label></div>
+        <div className="form-grid"><label>Problem number (optional)<input type="number" min="1" step="1" value={form.problem_number} onChange={(event) => update('problem_number', event.target.value)} placeholder="Example: 3 for P3" /></label><label>Difficulty (1–10)<input type="number" min="1" max="10" value={form.difficulty_rating} onChange={(event) => update('difficulty_rating', event.target.value)} /></label></div>
         <div className="form-grid"><label>Proposed by<input value={form.proposed_by} onChange={(event) => update('proposed_by', event.target.value)} /></label><label>Published hint (LaTeX supported)<textarea rows={3} value={form.hints} onChange={(event) => update('hints', event.target.value)} /></label></div>
         {form.hints ? <div className="latex-preview"><strong>Hint preview</strong><MathJax dynamic>{form.hints}</MathJax></div> : null}
         <div className="check-row"><label><input type="checkbox" checked={form.hints_enabled} onChange={(event) => update('hints_enabled', event.target.checked)} /> Show the published hint</label><label><input type="checkbox" checked={form.allow_hint_requests} onChange={(event) => update('allow_hint_requests', event.target.checked)} /> Allow hint requests</label></div>
@@ -282,7 +289,7 @@ function ProblemsTab({ user }: { user: User }) {
         {problems.map((problem) => (
           <article className="simple-card compact-card" key={problem.id}>
             <div className="card-title-row"><div><span className="status">{problem.problem_type}</span><h3>{problem.title}</h3></div><span className="muted">{problem.release_at ? formatTimestamp(problem.release_at) : formatDate(problem.release_date)}</span></div>
-            <p className="muted">Difficulty {problem.difficulty_rating ?? '—'}/10 · Due {problem.due_at ? formatTimestamp(problem.due_at) : formatDate(problem.due_date)} · {problem.is_archived ? 'Archived' : problem.is_current ? 'Scheduled/current' : 'Draft'}</p>
+            <p className="muted">{problem.problem_number ? `P${problem.problem_number} · ` : ''}Difficulty {problem.difficulty_rating ?? '—'}/10 · Due {problem.due_at ? formatTimestamp(problem.due_at) : formatDate(problem.due_date)} · {problem.is_archived ? 'Archived' : problem.is_current ? 'Scheduled/current' : 'Draft'}</p>
             <details><summary>Review problem and solution</summary><div className="latex-preview"><strong>Problem</strong><MathJax dynamic>{problem.statement_latex}</MathJax></div>{problem.solution_latex ? <div className="latex-preview"><strong>Solution</strong><MathJax dynamic>{problem.solution_latex}</MathJax></div> : <p className="muted">No solution has been added.</p>}</details>
             <div className="button-row"><button className="secondary-button" type="button" onClick={() => edit(problem)}>Edit</button><button className="danger-button" type="button" onClick={() => remove(problem)}>Remove</button></div>
           </article>

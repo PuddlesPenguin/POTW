@@ -16,6 +16,7 @@ export type Problem = {
   hints_enabled: boolean
   allow_hint_requests: boolean
   difficulty_rating?: number | null
+  problem_number?: number | null
 }
 
 export function formatTimestamp(value?: string | null) {

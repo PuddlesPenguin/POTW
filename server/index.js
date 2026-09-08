@@ -74,7 +74,7 @@ const publicUser = (row, token) => ({
 const publicProblemColumns = `
   id, title, statement_latex, problem_source, proposed_by, problem_type,
   is_current, is_archived, release_date, release_at, due_date, due_at, hints, hints_enabled,
-  allow_hint_requests, difficulty_rating
+  allow_hint_requests, difficulty_rating, problem_number
 `
 
 app.get('/api/health', async (_req, res, next) => {
@@ -467,9 +467,9 @@ app.get('/api/leaderboard', async (req, res, next) => {
     if (!season) return res.json({ season: null, problems: [], leaders: [] })
 
     const problemsResult = await query(
-      `SELECT id, title, problem_type, release_date FROM problems
+      `SELECT id, title, problem_type, release_date, problem_number FROM problems
        WHERE release_date BETWEEN $1 AND $2
-       ORDER BY release_date, id`,
+       ORDER BY problem_number NULLS LAST, release_date, id`,
       [season.start_date, season.end_date],
     )
     const usersResult = await query(
@@ -709,8 +709,8 @@ app.get('/api/admin/problems', requireAuth, requireAdmin, async (_req, res, next
     const result = await query(
       `SELECT id, title, statement_latex, solution_latex, problem_source, proposed_by, problem_type,
               is_current, is_archived, release_date, release_at, due_date, due_at, hints, hints_enabled,
-              allow_hint_requests, difficulty_rating
-       FROM problems ORDER BY release_date DESC NULLS LAST, id DESC`,
+              allow_hint_requests, difficulty_rating, problem_number
+       FROM problems ORDER BY problem_number NULLS LAST, release_date DESC NULLS LAST, id DESC`,
     )
     res.json({ problems: result.rows })
   } catch (error) {
@@ -736,6 +736,7 @@ function problemValues(body) {
     Boolean(body.allow_hint_requests),
     String(body.release_at || '').trim() || null,
     String(body.due_at || '').trim() || null,
+    body.problem_number ? Number(body.problem_number) : null,
   ]
 }
 
@@ -743,6 +744,9 @@ function validateProblem(values) {
   if (!values[0] || !values[1] || !values[5]) return 'Title, statement, and problem type are required.'
   if (values[11] !== null && (!Number.isInteger(values[11]) || values[11] < 1 || values[11] > 10)) {
     return 'Difficulty must be a whole number from 1 to 10.'
+  }
+  if (values[16] !== null && (!Number.isInteger(values[16]) || values[16] < 1)) {
+    return 'Problem number must be a positive whole number.'
   }
   if (values[8] && values[9] && values[9] < values[8]) return 'Due date cannot be before release date.'
   if (values[14] && !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(values[14])) return 'Choose a valid release date and time.'
@@ -760,10 +764,10 @@ app.post('/api/admin/problems', requireAuth, requireAdmin, async (req, res, next
       `INSERT INTO problems
         (title, statement_latex, solution_latex, problem_source, proposed_by, problem_type,
          is_current, is_archived, release_date, due_date, hints, difficulty_rating,
-         hints_enabled, allow_hint_requests, release_at, due_at)
+         hints_enabled, allow_hint_requests, release_at, due_at, problem_number)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
                $15::timestamp AT TIME ZONE 'America/Indiana/Indianapolis',
-               $16::timestamp AT TIME ZONE 'America/Indiana/Indianapolis')
+               $16::timestamp AT TIME ZONE 'America/Indiana/Indianapolis', $17)
        RETURNING *`,
       values,
     )
@@ -785,8 +789,8 @@ app.put('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res, n
          release_date = $9, due_date = $10, hints = $11, difficulty_rating = $12,
          hints_enabled = $13, allow_hint_requests = $14,
          release_at = $15::timestamp AT TIME ZONE 'America/Indiana/Indianapolis',
-         due_at = $16::timestamp AT TIME ZONE 'America/Indiana/Indianapolis'
-       WHERE id = $17 RETURNING *`,
+         due_at = $16::timestamp AT TIME ZONE 'America/Indiana/Indianapolis', problem_number = $17
+       WHERE id = $18 RETURNING *`,
       [...values, Number(req.params.id)],
     )
     if (!result.rows[0]) return res.status(404).json({ message: 'Problem not found.' })
@@ -989,6 +993,10 @@ async function archiveExpiredProblems() {
     console.error('Could not archive expired problems:', error)
   }
 }
+
+// Keep existing deployments compatible while the numbered-problems migration
+// is being applied. The checked-in migration remains the canonical schema.
+await query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS problem_number integer')
 
 const server = app.listen(port, () => console.log(`POTW API listening on http://localhost:${port}`))
 void archiveExpiredProblems()

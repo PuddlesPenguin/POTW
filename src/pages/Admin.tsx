@@ -44,6 +44,28 @@ function congratulationsMessage(submissions: Submission[]) {
   return parts.length > 0 ? `${parts.join(' and ')}.` : ''
 }
 
+async function copyText(text: string) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return
+    }
+  } catch {
+    // Fall back to the older copy path for browsers or pages without clipboard permission.
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  textarea.remove()
+  if (!copied) throw new Error('Copy is unavailable in this browser. Select the message and copy it manually.')
+}
+
 function defaultReleaseTime() {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', {
     timeZone: releaseTimeZone, year: 'numeric', month: '2-digit', day: '2-digit',
@@ -152,8 +174,12 @@ function GradingTab({ user }: { user: User }) {
   async function copyCongratulations() {
     const text = congratulationsMessage(submissions)
     if (!text) return
-    await navigator.clipboard.writeText(text)
-    setMessage('Congratulations message copied.')
+    try {
+      await copyText(text)
+      setMessage('Congratulations message copied.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not copy the congratulations message.')
+    }
   }
 
   async function removeSubmission(submission: Submission) {
@@ -277,7 +303,8 @@ function ProblemsTab({ user }: { user: User }) {
         <div className="latex-preview"><strong>Solution preview</strong><MathJax dynamic>{form.solution_latex || 'Your rendered solution will appear here.'}</MathJax></div>
         <div className="form-grid"><label>Release date and time (Eastern)<input type="datetime-local" value={form.release_at} onChange={(event) => setForm((current) => ({ ...current, release_at: event.target.value, release_date: event.target.value.slice(0, 10) }))} required /></label><label>Due date and time (Eastern)<input type="datetime-local" value={form.due_at} onChange={(event) => setForm((current) => ({ ...current, due_at: event.target.value, due_date: event.target.value.slice(0, 10) }))} /></label></div>
         <div className="form-grid"><label>Problem number (optional)<input type="number" min="1" step="1" value={form.problem_number} onChange={(event) => update('problem_number', event.target.value)} placeholder="Example: 3 for P3" /></label><label>Difficulty (1–10)<input type="number" min="1" max="10" value={form.difficulty_rating} onChange={(event) => update('difficulty_rating', event.target.value)} /></label></div>
-        <div className="form-grid"><label>Proposed by<input value={form.proposed_by} onChange={(event) => update('proposed_by', event.target.value)} /></label><label>Published hint (LaTeX supported)<textarea rows={3} value={form.hints} onChange={(event) => update('hints', event.target.value)} /></label></div>
+        <div className="form-grid"><label>Problem source (optional)<input type="text" value={form.problem_source} onChange={(event) => update('problem_source', event.target.value)} placeholder="Book, contest, or URL" /></label><label>Proposed by<input type="text" value={form.proposed_by} onChange={(event) => update('proposed_by', event.target.value)} placeholder="Person or organization to thank" /></label></div>
+        <label>Published hint (LaTeX supported)<textarea rows={3} value={form.hints} onChange={(event) => update('hints', event.target.value)} /></label>
         {form.hints ? <div className="latex-preview"><strong>Hint preview</strong><MathJax dynamic>{form.hints}</MathJax></div> : null}
         <div className="check-row"><label><input type="checkbox" checked={form.hints_enabled} onChange={(event) => update('hints_enabled', event.target.checked)} /> Show the published hint</label><label><input type="checkbox" checked={form.allow_hint_requests} onChange={(event) => update('allow_hint_requests', event.target.checked)} /> Allow hint requests</label></div>
         <div className="check-row"><label><input type="checkbox" checked={form.is_current} onChange={(event) => update('is_current', event.target.checked)} /> Available when release date arrives</label><label><input type="checkbox" checked={form.is_archived} onChange={(event) => update('is_archived', event.target.checked)} /> Archived</label></div>
@@ -302,6 +329,7 @@ function ProblemsTab({ user }: { user: User }) {
 function ProposalsTab({ user }: { user: User }) {
   const [proposals, setProposals] = useState<Proposal[]>([])
   const [hints, setHints] = useState<HintRequest[]>([])
+  const [userFilter, setUserFilter] = useState('')
   const [hintResponses, setHintResponses] = useState<Record<number, string>>({})
   const [hintMessage, setHintMessage] = useState('')
   const [message, setMessage] = useState('Loading proposals…')
@@ -312,6 +340,11 @@ function ProposalsTab({ user }: { user: User }) {
       .catch((error) => setMessage(error instanceof Error ? error.message : 'Could not load proposals.'))
   }
   useEffect(load, [user])
+
+  const userOptions = [...new Set([...proposals, ...hints].map((item) => item.username))]
+    .sort((a, b) => a.localeCompare(b))
+  const visibleProposals = proposals.filter((proposal) => !userFilter || proposal.username === userFilter)
+  const visibleHints = hints.filter((hint) => !userFilter || hint.username === userFilter)
 
   async function setProposalStatus(id: number, status: Proposal['status']) {
     try {
@@ -372,13 +405,23 @@ function ProposalsTab({ user }: { user: User }) {
 
   return (
     <section className="admin-section">
-      <div className="section-heading"><h2>Problem proposals</h2><span className="count-badge">{proposals.filter((item) => item.status === 'pending').length} pending</span></div>
+      <div className="panel admin-filter-bar">
+        <label htmlFor="proposal-user-filter">User
+          <select id="proposal-user-filter" value={userFilter} onChange={(event) => setUserFilter(event.target.value)}>
+            <option value="">All users</option>
+            {userOptions.map((username) => <option key={username} value={username}>{username}</option>)}
+          </select>
+        </label>
+        {userFilter ? <button className="secondary-button" type="button" onClick={() => setUserFilter('')}>Clear filter</button> : null}
+      </div>
+      <div className="section-heading"><h2>Problem proposals</h2><span className="count-badge">{visibleProposals.filter((item) => item.status === 'pending').length} pending</span></div>
       {message ? <p className="form-message">{message}</p> : null}
-      {proposals.length === 0 ? <div className="panel empty-state">No problem proposals yet.</div> : null}
+      {visibleProposals.length === 0 ? <div className="panel empty-state">{userFilter ? `No problem proposals from ${userFilter}.` : 'No problem proposals yet.'}</div> : null}
       <div className="card-list">
-        {proposals.map((proposal) => (
+        {visibleProposals.map((proposal) => (
           <article className="simple-card" key={proposal.id}>
             <div className="card-title-row"><div><span className="status">{proposal.status}</span><h3>{proposal.title}</h3></div><span className="muted">{proposal.username}</span></div>
+            <p className="muted">Proposed {formatTimestamp(proposal.created_at)}</p>
             <div className="latex-preview"><MathJax dynamic>{proposal.statement_latex}</MathJax></div>
             <button className="secondary-button copy-button" type="button" onClick={() => navigator.clipboard.writeText(proposal.statement_latex)}>Copy statement LaTeX</button>
             {proposal.solution_latex ? <details><summary>Proposed solution</summary><div className="latex-preview"><MathJax dynamic>{proposal.solution_latex}</MathJax></div><button className="secondary-button copy-button" type="button" onClick={() => navigator.clipboard.writeText(proposal.solution_latex ?? '')}>Copy solution LaTeX</button></details> : null}
@@ -387,10 +430,11 @@ function ProposalsTab({ user }: { user: User }) {
           </article>
         ))}
       </div>
-      <div className="section-heading list-heading"><h2>Hint requests</h2><span className="count-badge">{hints.filter((item) => item.status === 'pending').length} pending</span></div>
-      {hints.length === 0 ? <div className="panel empty-state">No hint requests yet.</div> : (
-        <div className="card-list">{hints.map((hint) => <article className="simple-card hint-review-card" key={hint.id}>
+      <div className="section-heading list-heading"><h2>Hint requests</h2><span className="count-badge">{visibleHints.filter((item) => item.status === 'pending').length} pending</span></div>
+      {visibleHints.length === 0 ? <div className="panel empty-state">{userFilter ? `No hint requests from ${userFilter}.` : 'No hint requests yet.'}</div> : (
+        <div className="card-list">{visibleHints.map((hint) => <article className="simple-card hint-review-card" key={hint.id}>
           <div className="card-title-row"><div><span className="status">{hint.status}</span><h3>{hint.problem_title}</h3></div><span className="muted">{hint.username}</span></div>
+          <p className="muted">Requested {formatTimestamp(hint.created_at)}</p>
           <div className="hint-request-message">
             <span className="hint-request-label">What they tried</span>
             {hint.message ? <MathJax dynamic>{hint.message}</MathJax> : <p className="muted">No message included.</p>}

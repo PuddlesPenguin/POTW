@@ -59,6 +59,9 @@
 .card-title-row > div { display: grid; gap: 8px; }
 .card-title-row h3 { font-size: 1.12rem; }
 .button-row { display: flex; flex-wrap: wrap; gap: 9px; }
+.admin-filter-bar { display: flex; align-items: end; gap: 12px; }
+.admin-filter-bar label { display: grid; min-width: 220px; gap: 6px; color: #493a24; font-size: .9rem; font-weight: 700; }
+.admin-filter-bar select { width: 100%; padding: 10px; border: 1px solid #b9aa8d; border-radius: 4px; background: #fffdf8; color: #332618; }
 .copy-button { margin-top: 10px; }
 .copy-message-panel { display: grid; gap: 12px; }
 .copy-message-panel h3 { font-size: 1.15rem; }
@@ -107,5 +110,7 @@
   .panel, .simple-card { padding: 16px; }
   .form-grid, .form-grid.three, .grade-row { grid-template-columns: 1fr; }
   .season-heading, .card-title-row { align-items: flex-start; flex-direction: column; }
+  .admin-filter-bar { align-items: stretch; flex-direction: column; }
+  .admin-filter-bar label { min-width: 0; }
   .season-heading label { width: 100%; }
 }

@@ -814,12 +814,13 @@ app.get('/api/admin/proposals', requireAuth, requireAdmin, async (_req, res, nex
   try {
     const proposals = await query(
       `SELECT pp.*, u.username, u.email FROM problem_proposals pp
-       JOIN users u ON u.id = pp.user_id ORDER BY pp.status, pp.created_at DESC`,
+       JOIN users u ON u.id = pp.user_id
+       ORDER BY pp.created_at DESC, pp.id DESC`,
     )
     const hintRequests = await query(
       `SELECT hr.id, hr.message, hr.response, hr.status, hr.created_at, u.username, p.title AS problem_title
        FROM hint_requests hr JOIN users u ON u.id = hr.user_id JOIN problems p ON p.id = hr.problem_id
-       ORDER BY hr.status, hr.created_at DESC`,
+       ORDER BY hr.created_at DESC, hr.id DESC`,
     )
     res.json({ proposals: proposals.rows, hint_requests: hintRequests.rows })
   } catch (error) {

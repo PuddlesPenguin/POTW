@@ -12,7 +12,7 @@ import './Page.css'
 
 type Props = { user: UserState; setUser: SetUser }
 type AdminTab = 'grading' | 'problems' | 'proposals' | 'seasons' | 'users'
-type AdminProblem = Problem & { solution_latex?: string | null }
+type AdminProblem = Problem & { solution_latex?: string | null; archive_override?: boolean }
 type Submission = {
   id: number; username: string; email: string; title: string; problem_type: string
   answer_text?: string | null; work_text?: string | null; file_name?: string | null; solution_latex?: string | null
@@ -269,12 +269,14 @@ function ProblemsTab({ user }: { user: User }) {
     event.preventDefault()
     try {
       const path = editingId ? `/admin/problems/${editingId}` : '/admin/problems'
-      const data = await apiRequest<{ message: string }>(path, {
+      const data = await apiRequest<{ message: string; problem: AdminProblem }>(path, {
         method: editingId ? 'PUT' : 'POST', body: JSON.stringify(form),
       }, user)
+      setProblems((current) => editingId
+        ? current.map((item) => item.id === data.problem.id ? data.problem : item)
+        : [data.problem, ...current])
       reset()
       setMessage(data.message)
-      load()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not save the problem.')
     }
@@ -302,7 +304,7 @@ function ProblemsTab({ user }: { user: User }) {
         <label>Solution (LaTeX)<textarea rows={6} value={form.solution_latex} onChange={(event) => update('solution_latex', event.target.value)} /></label>
         <div className="latex-preview"><strong>Solution preview</strong><MathJax dynamic>{form.solution_latex || 'Your rendered solution will appear here.'}</MathJax></div>
         <div className="form-grid"><label>Release date and time (Eastern)<input type="datetime-local" value={form.release_at} onChange={(event) => setForm((current) => ({ ...current, release_at: event.target.value, release_date: event.target.value.slice(0, 10) }))} required /></label><label>Due date and time (Eastern)<input type="datetime-local" value={form.due_at} onChange={(event) => setForm((current) => ({ ...current, due_at: event.target.value, due_date: event.target.value.slice(0, 10) }))} /></label></div>
-        <div className="form-grid"><label>Problem number (optional)<input type="number" min="1" step="1" value={form.problem_number} onChange={(event) => update('problem_number', event.target.value)} placeholder="Example: 3 for P3" /></label><label>Difficulty (1–10)<input type="number" min="1" max="10" value={form.difficulty_rating} onChange={(event) => update('difficulty_rating', event.target.value)} /></label></div>
+        <div className="form-grid"><label>Ordering number (optional)<input type="number" min="1" step="1" value={form.problem_number} onChange={(event) => update('problem_number', event.target.value)} placeholder="Example: 3 for the third problem" /></label><label>Difficulty (1–10)<input type="number" min="1" max="10" value={form.difficulty_rating} onChange={(event) => update('difficulty_rating', event.target.value)} /></label></div>
         <div className="form-grid"><label>Problem source (optional)<input type="text" value={form.problem_source} onChange={(event) => update('problem_source', event.target.value)} placeholder="Book, contest, or URL" /></label><label>Proposed by<input type="text" value={form.proposed_by} onChange={(event) => update('proposed_by', event.target.value)} placeholder="Person or organization to thank" /></label></div>
         <label>Published hint (LaTeX supported)<textarea rows={3} value={form.hints} onChange={(event) => update('hints', event.target.value)} /></label>
         {form.hints ? <div className="latex-preview"><strong>Hint preview</strong><MathJax dynamic>{form.hints}</MathJax></div> : null}
@@ -316,7 +318,7 @@ function ProblemsTab({ user }: { user: User }) {
         {problems.map((problem) => (
           <article className="simple-card compact-card" key={problem.id}>
             <div className="card-title-row"><div><span className="status">{problem.problem_type}</span><h3>{problem.title}</h3></div><span className="muted">{problem.release_at ? formatTimestamp(problem.release_at) : formatDate(problem.release_date)}</span></div>
-            <p className="muted">{problem.problem_number ? `P${problem.problem_number} · ` : ''}Difficulty {problem.difficulty_rating ?? '—'}/10 · Due {problem.due_at ? formatTimestamp(problem.due_at) : formatDate(problem.due_date)} · {problem.is_archived ? 'Archived' : problem.is_current ? 'Scheduled/current' : 'Draft'}</p>
+            <p className="muted">{problem.problem_number ? `Order ${problem.problem_number} · ` : ''}Difficulty {problem.difficulty_rating ?? '—'}/10 · Due {problem.due_at ? formatTimestamp(problem.due_at) : formatDate(problem.due_date)} · {problem.is_archived ? 'Archived' : problem.is_current ? 'Scheduled/current' : 'Draft'}</p>
             <details><summary>Review problem and solution</summary><div className="latex-preview"><strong>Problem</strong><MathJax dynamic>{problem.statement_latex}</MathJax></div>{problem.solution_latex ? <div className="latex-preview"><strong>Solution</strong><MathJax dynamic>{problem.solution_latex}</MathJax></div> : <p className="muted">No solution has been added.</p>}</details>
             <div className="button-row"><button className="secondary-button" type="button" onClick={() => edit(problem)}>Edit</button><button className="danger-button" type="button" onClick={() => remove(problem)}>Remove</button></div>
           </article>

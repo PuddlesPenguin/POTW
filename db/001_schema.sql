@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS problems (
   hints_enabled boolean NOT NULL DEFAULT true,
   allow_hint_requests boolean NOT NULL DEFAULT true,
   difficulty_rating integer CHECK (difficulty_rating BETWEEN 1 AND 10),
-  problem_number integer CHECK (problem_number > 0)
+  problem_number integer CHECK (problem_number > 0),
+  archive_override boolean NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS submissions (

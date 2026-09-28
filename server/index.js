@@ -467,9 +467,11 @@ app.get('/api/leaderboard', async (req, res, next) => {
     if (!season) return res.json({ season: null, problems: [], leaders: [] })
 
     const problemsResult = await query(
-      `SELECT id, title, problem_type, release_date, problem_number FROM problems
-       WHERE release_date BETWEEN $1 AND $2
-       ORDER BY problem_number NULLS LAST, release_date, id`,
+      `SELECT p.id, p.title, p.problem_type, p.release_date,
+              ROW_NUMBER() OVER (ORDER BY p.problem_number NULLS LAST, p.release_date, p.id)::integer AS problem_number
+       FROM problems p
+       WHERE p.release_date BETWEEN $1 AND $2
+       ORDER BY p.problem_number NULLS LAST, p.release_date, p.id`,
       [season.start_date, season.end_date],
     )
     const usersResult = await query(
@@ -709,7 +711,7 @@ app.get('/api/admin/problems', requireAuth, requireAdmin, async (_req, res, next
     const result = await query(
       `SELECT id, title, statement_latex, solution_latex, problem_source, proposed_by, problem_type,
               is_current, is_archived, release_date, release_at, due_date, due_at, hints, hints_enabled,
-              allow_hint_requests, difficulty_rating, problem_number
+              allow_hint_requests, difficulty_rating, problem_number, archive_override
        FROM problems ORDER BY problem_number NULLS LAST, release_date DESC NULLS LAST, id DESC`,
     )
     res.json({ problems: result.rows })
@@ -786,6 +788,11 @@ app.put('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res, n
       `UPDATE problems SET
          title = $1, statement_latex = $2, solution_latex = $3, problem_source = $4,
          proposed_by = $5, problem_type = $6, is_current = $7, is_archived = $8,
+         archive_override = CASE
+           WHEN $8 = FALSE AND is_archived = TRUE THEN TRUE
+           WHEN $8 = TRUE THEN FALSE
+           ELSE archive_override
+         END,
          release_date = $9, due_date = $10, hints = $11, difficulty_rating = $12,
          hints_enabled = $13, allow_hint_requests = $14,
          release_at = $15::timestamp AT TIME ZONE 'America/Indiana/Indianapolis',
@@ -986,6 +993,7 @@ async function archiveExpiredProblems() {
       `UPDATE problems
        SET is_current = FALSE, is_archived = TRUE
        WHERE is_archived = FALSE
+         AND archive_override = FALSE
          AND ((due_at IS NOT NULL AND due_at <= CURRENT_TIMESTAMP)
               OR (due_at IS NULL AND due_date IS NOT NULL AND due_date < CURRENT_DATE))`,
     )
@@ -998,6 +1006,7 @@ async function archiveExpiredProblems() {
 // Keep existing deployments compatible while the numbered-problems migration
 // is being applied. The checked-in migration remains the canonical schema.
 await query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS problem_number integer')
+await query('ALTER TABLE problems ADD COLUMN IF NOT EXISTS archive_override boolean NOT NULL DEFAULT false')
 
 const server = app.listen(port, () => console.log(`POTW API listening on http://localhost:${port}`))
 void archiveExpiredProblems()

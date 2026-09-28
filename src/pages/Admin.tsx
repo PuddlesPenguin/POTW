@@ -481,8 +481,18 @@ function SeasonsTab({ user }: { user: User }) {
 
 function UsersTab({ user }: { user: User }) {
   const [users, setUsers] = useState<ManagedUser[]>([])
+  const [usernameDrafts, setUsernameDrafts] = useState<Record<number, string>>({})
   const [message, setMessage] = useState('Loading users…')
-  useEffect(() => { apiRequest<{ users: ManagedUser[] }>('/admin/users', {}, user).then((data) => { setUsers(data.users); setMessage('') }).catch((error) => setMessage(error.message)) }, [user])
+  useEffect(() => { apiRequest<{ users: ManagedUser[] }>('/admin/users', {}, user).then((data) => { setUsers(data.users); setUsernameDrafts(Object.fromEntries(data.users.map((account) => [account.id, account.username]))); setMessage('') }).catch((error) => setMessage(error.message)) }, [user])
+
+  async function rename(account: ManagedUser) {
+    try {
+      const data = await apiRequest<{ user: ManagedUser; message: string }>(`/admin/users/${account.id}/username`, { method: 'PATCH', body: JSON.stringify({ username: usernameDrafts[account.id] ?? account.username }) }, user)
+      setUsers((current) => current.map((item) => item.id === account.id ? data.user : item))
+      setUsernameDrafts((current) => ({ ...current, [account.id]: data.user.username }))
+      setMessage(data.message)
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not update that username.') }
+  }
 
   async function toggle(account: ManagedUser) {
     try {
@@ -516,7 +526,7 @@ function UsersTab({ user }: { user: User }) {
   }
 
   return (
-    <section className="admin-section"><div className="section-heading"><div><h2>User access</h2><p className="muted">Only the superuser can manage accounts.</p></div></div>{message ? <p className="form-message">{message}</p> : null}<div className="panel table-wrap"><table className="simple-table"><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead><tbody>{users.map((account) => <tr key={account.id}><td>{account.username}</td><td>{account.email}{account.email_verified ? null : <span className="muted"> · unverified</span>}</td><td>{account.is_superuser ? 'Superuser' : account.is_admin ? 'Admin' : 'Solver'}</td><td>{account.is_superuser ? <span className="status">Protected</span> : <div className="button-row">{!account.email_verified ? <button className="secondary-button" type="button" onClick={() => verify(account)}>Manual override</button> : null}<button className="secondary-button" type="button" onClick={() => toggle(account)}>{account.is_admin ? 'Remove admin' : 'Make admin'}</button><button className="danger-button" type="button" onClick={() => remove(account)}>Delete account</button></div>}</td></tr>)}</tbody></table></div></section>
+    <section className="admin-section"><div className="section-heading"><div><h2>User access</h2><p className="muted">Only the superuser can manage accounts.</p></div></div>{message ? <p className="form-message">{message}</p> : null}<div className="panel table-wrap"><table className="simple-table"><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead><tbody>{users.map((account) => <tr key={account.id}><td>{account.is_superuser ? account.username : <div className="user-name-editor"><input aria-label={`Username for ${account.username}`} value={usernameDrafts[account.id] ?? account.username} onChange={(event) => setUsernameDrafts((current) => ({ ...current, [account.id]: event.target.value }))} /><button className="secondary-button" type="button" onClick={() => void rename(account)}>Save name</button></div>}</td><td>{account.email}{account.email_verified ? null : <span className="muted"> · unverified</span>}</td><td>{account.is_superuser ? 'Superuser' : account.is_admin ? 'Admin' : 'Solver'}</td><td>{account.is_superuser ? <span className="status">Protected</span> : <div className="button-row">{!account.email_verified ? <button className="secondary-button" type="button" onClick={() => verify(account)}>Manual override</button> : null}<button className="secondary-button" type="button" onClick={() => toggle(account)}>{account.is_admin ? 'Remove admin' : 'Make admin'}</button><button className="danger-button" type="button" onClick={() => remove(account)}>Delete account</button></div>}</td></tr>)}</tbody></table></div></section>
   )
 }
 

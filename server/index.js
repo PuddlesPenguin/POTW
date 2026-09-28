@@ -61,6 +61,13 @@ function hashToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex')
 }
 
+function usernameValidationError(username) {
+  if (!/^[a-zA-Z0-9_-]{3,30}$/.test(username)) {
+    return 'Username must be 3–30 letters, numbers, dashes, or underscores.'
+  }
+  return ''
+}
+
 const publicUser = (row, token) => ({
   id: row.id,
   username: row.username,
@@ -384,6 +391,28 @@ app.patch('/api/profile/preferences', requireAuth, async (req, res, next) => {
         : 'You will now appear on the public leaderboard.',
     })
   } catch (error) {
+    next(error)
+  }
+})
+
+app.patch('/api/profile/username', requireAuth, async (req, res, next) => {
+  try {
+    const username = String(req.body.username || '').trim()
+    const validationError = usernameValidationError(username)
+    if (validationError) return res.status(400).json({ message: validationError })
+    const conflict = await query(
+      'SELECT 1 FROM users WHERE LOWER(username) = LOWER($1) AND id <> $2 LIMIT 1',
+      [username, req.user.id],
+    )
+    if (conflict.rows[0]) return res.status(409).json({ message: 'That username is already taken.' })
+    const result = await query(
+      `UPDATE users SET username = $1 WHERE id = $2
+       RETURNING id, username, email, is_admin, is_superuser, leaderboard_hidden`,
+      [username, req.user.id],
+    )
+    res.json({ user: publicUser(result.rows[0], createToken(result.rows[0])), message: 'Username updated.' })
+  } catch (error) {
+    if (error.code === '23505') return res.status(409).json({ message: 'That username is already taken.' })
     next(error)
   }
 })
@@ -938,6 +967,31 @@ app.get('/api/admin/users', requireAuth, requireSuperuser, async (_req, res, nex
     )
     res.json({ users: result.rows })
   } catch (error) {
+    next(error)
+  }
+})
+
+app.patch('/api/admin/users/:id/username', requireAuth, requireSuperuser, async (req, res, next) => {
+  try {
+    const username = String(req.body.username || '').trim()
+    const accountId = Number(req.params.id)
+    const validationError = usernameValidationError(username)
+    if (validationError) return res.status(400).json({ message: validationError })
+    if (!Number.isInteger(accountId)) return res.status(400).json({ message: 'Invalid account.' })
+    const conflict = await query(
+      'SELECT 1 FROM users WHERE LOWER(username) = LOWER($1) AND id <> $2 LIMIT 1',
+      [username, accountId],
+    )
+    if (conflict.rows[0]) return res.status(409).json({ message: 'That username is already taken.' })
+    const result = await query(
+      `UPDATE users SET username = $1 WHERE id = $2 AND is_superuser = FALSE
+       RETURNING id, username, email, is_admin, is_superuser, email_verified`,
+      [username, accountId],
+    )
+    if (!result.rows[0]) return res.status(400).json({ message: 'That account cannot be renamed.' })
+    res.json({ user: result.rows[0], message: 'Username updated.' })
+  } catch (error) {
+    if (error.code === '23505') return res.status(409).json({ message: 'That username is already taken.' })
     next(error)
   }
 })

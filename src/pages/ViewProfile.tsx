@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import { MathJax, MathJaxContext } from 'better-react-mathjax'
 import { Link, Navigate } from 'react-router-dom'
 import NavBar from '../components/navbar/NavBar'
@@ -32,6 +33,9 @@ function ViewProfile({ user, setUser }: Props) {
   const [draftWork, setDraftWork] = useState('')
   const [draftFile, setDraftFile] = useState<File | null>(null)
   const [privacySaving, setPrivacySaving] = useState(false)
+  const [usernameDraft, setUsernameDraft] = useState(user?.username ?? '')
+  const [usernameSaving, setUsernameSaving] = useState(false)
+  const [usernameMessage, setUsernameMessage] = useState('')
   const editFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -92,6 +96,24 @@ function ViewProfile({ user, setUser }: Props) {
     } finally { setPrivacySaving(false) }
   }
 
+  async function saveUsername(event: FormEvent) {
+    event.preventDefault()
+    const currentUser = user
+    if (!currentUser) return
+    setUsernameSaving(true)
+    setUsernameMessage('')
+    try {
+      const data = await apiRequest<{ user: User; message: string }>('/profile/username', {
+        method: 'PATCH', body: JSON.stringify({ username: usernameDraft }),
+      }, currentUser)
+      setUser(data.user)
+      setUsernameDraft(data.user.username)
+      setUsernameMessage(data.message)
+    } catch (error) {
+      setUsernameMessage(error instanceof Error ? error.message : 'Could not update your username.')
+    } finally { setUsernameSaving(false) }
+  }
+
   return (
     <MathJaxContext config={mathJaxConfig} version={4}>
       <div className="app-page">
@@ -104,6 +126,12 @@ function ViewProfile({ user, setUser }: Props) {
               <label className="privacy-switch"><span>Anonymous mode</span><input type="checkbox" checked={Boolean(user.leaderboard_hidden)} disabled={privacySaving} onChange={(event) => { void updateLeaderboardPrivacy(event.target.checked) }} /><span className="switch-track" aria-hidden="true"><span /></span></label>
             </div>
           </section>
+          <form className="panel simple-form profile-name-form" onSubmit={saveUsername}>
+            <div><h2>Username</h2><p className="muted">Use 3–30 letters, numbers, dashes, or underscores.</p></div>
+            <label>Username<input value={usernameDraft} minLength={3} maxLength={30} pattern="[a-zA-Z0-9_-]+" onChange={(event) => setUsernameDraft(event.target.value)} required /></label>
+            <button className="primary-button" type="submit" disabled={usernameSaving}>{usernameSaving ? 'Saving…' : 'Save username'}</button>
+            {usernameMessage ? <p className="form-message" role="status">{usernameMessage}</p> : null}
+          </form>
           <header className="page-heading"><h1>Your submissions</h1><p>You can edit a current submission before its deadline. Each problem allows up to five submissions.</p></header>
           {message ? <p className="form-message" role="status">{message}</p> : null}
           {!message && submissions.length === 0 ? <div className="panel empty-state">You have not submitted a solution yet. <Link className="page-link" to="/">View this week&apos;s problems.</Link></div> : null}

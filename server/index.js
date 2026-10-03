@@ -206,7 +206,12 @@ app.post('/api/auth/forgot-password', emailLimiter, async (req, res, next) => {
            password_reset_expires_at = CURRENT_TIMESTAMP + INTERVAL '1 hour' WHERE id = $2`,
         [reset.hash, found.rows[0].id],
       )
-      developmentUrl = await sendPasswordResetEmail(found.rows[0].email, reset.token)
+      try {
+        developmentUrl = await sendPasswordResetEmail(found.rows[0].email, reset.token)
+      } catch (emailError) {
+        console.error('Could not send password reset email:', emailError)
+        return res.status(503).json({ message: 'Password reset email service is not configured or is temporarily unavailable. Please contact the site administrator.' })
+      }
     }
     res.json({
       message: 'If an account uses that email, a password reset link has been sent.',

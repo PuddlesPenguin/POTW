@@ -254,7 +254,25 @@ app.post('/api/auth/login', loginLimiter, async (req, res, next) => {
     if (!user.email_verified) {
       return res.status(403).json({ message: 'Please verify your email before logging in.' })
     }
+    await query(
+      `INSERT INTO login_events (user_id, username, email)
+       VALUES ($1, $2, $3)`,
+      [user.id, user.username, user.email],
+    )
     res.json({ user: publicUser(user, createToken(user)) })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/analytics/visits', async (req, res, next) => {
+  try {
+    const path = String(req.body.path || '').trim()
+    if (!path || path.length > 255 || !path.startsWith('/')) {
+      return res.status(400).json({ message: 'A valid page path is required.' })
+    }
+    await query('INSERT INTO site_visits (path) VALUES ($1)', [path])
+    res.status(201).json({ recorded: true })
   } catch (error) {
     next(error)
   }
@@ -966,6 +984,56 @@ app.get('/api/admin/users', requireAuth, requireSuperuser, async (_req, res, nex
       'SELECT id, username, email, is_admin, is_superuser, email_verified, created_at FROM users ORDER BY username',
     )
     res.json({ users: result.rows })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/admin/analytics', requireAuth, requireAdmin, async (_req, res, next) => {
+  try {
+    const timeZone = 'America/Indiana/Indianapolis'
+    const totals = await Promise.all([
+      query('SELECT COUNT(*)::integer AS count FROM login_events'),
+      query('SELECT COUNT(*)::integer AS count FROM site_visits'),
+    ])
+    const daily = await query(
+      `WITH local_today AS (
+         SELECT (CURRENT_TIMESTAMP AT TIME ZONE $1)::date AS day
+       ), days AS (
+         SELECT generate_series(
+           (SELECT day FROM local_today) - INTERVAL '29 days',
+           (SELECT day FROM local_today),
+           INTERVAL '1 day'
+         )::date AS day
+       ), logins AS (
+         SELECT (logged_in_at AT TIME ZONE $1)::date AS day, COUNT(*)::integer AS count
+         FROM login_events
+         WHERE (logged_in_at AT TIME ZONE $1)::date >= (SELECT MIN(day) FROM days)
+         GROUP BY 1
+       ), visits AS (
+         SELECT (visited_at AT TIME ZONE $1)::date AS day, COUNT(*)::integer AS count
+         FROM site_visits
+         WHERE (visited_at AT TIME ZONE $1)::date >= (SELECT MIN(day) FROM days)
+         GROUP BY 1
+       )
+       SELECT days.day,
+              COALESCE(logins.count, 0)::integer AS logins,
+              COALESCE(visits.count, 0)::integer AS visits
+       FROM days
+       LEFT JOIN logins ON logins.day = days.day
+       LEFT JOIN visits ON visits.day = days.day
+       ORDER BY days.day`,
+      [timeZone],
+    )
+    const recentLogins = await query(
+      `SELECT id, username, email, logged_in_at
+       FROM login_events ORDER BY logged_in_at DESC`,
+    )
+    res.json({
+      totals: { logins: totals[0].rows[0].count, visits: totals[1].rows[0].count },
+      daily: daily.rows,
+      recent_logins: recentLogins.rows,
+    })
   } catch (error) {
     next(error)
   }

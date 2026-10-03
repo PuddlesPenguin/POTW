@@ -11,7 +11,7 @@ import type { SetUser, User, UserState } from '../types/user'
 import './Page.css'
 
 type Props = { user: UserState; setUser: SetUser }
-type AdminTab = 'grading' | 'problems' | 'proposals' | 'seasons' | 'users'
+type AdminTab = 'grading' | 'problems' | 'proposals' | 'seasons' | 'analytics' | 'users'
 type AdminProblem = Problem & { solution_latex?: string | null; archive_override?: boolean }
 type Submission = {
   id: number; username: string; email: string; title: string; problem_type: string
@@ -26,6 +26,9 @@ type Proposal = {
 type HintRequest = { id: number; username: string; problem_title: string; message?: string | null; response?: string | null; status: string; created_at: string }
 type Season = { id: number; name: string; start_date: string; end_date: string; is_active: boolean }
 type ManagedUser = { id: number; username: string; email: string; is_admin: boolean; is_superuser: boolean; email_verified: boolean }
+type AnalyticsDay = { day: string; logins: number; visits: number }
+type LoginEvent = { id: number; username: string; email: string; logged_in_at: string }
+type Analytics = { totals: { logins: number; visits: number }; daily: AnalyticsDay[]; recent_logins: LoginEvent[] }
 
 const releaseTimeZone = 'America/Indiana/Indianapolis'
 
@@ -110,6 +113,7 @@ function Admin({ user, setUser }: Props) {
     { id: 'problems', label: 'Problems' },
     { id: 'proposals', label: 'Proposals' },
     { id: 'seasons', label: 'Seasons' },
+    { id: 'analytics', label: 'Analytics' },
     { id: 'users', label: 'Users', superuser: true },
   ]
 
@@ -128,10 +132,56 @@ function Admin({ user, setUser }: Props) {
           {tab === 'problems' ? <ProblemsTab user={user} /> : null}
           {tab === 'proposals' ? <ProposalsTab user={user} /> : null}
           {tab === 'seasons' ? <SeasonsTab user={user} /> : null}
+          {tab === 'analytics' ? <AnalyticsTab user={user} /> : null}
           {tab === 'users' && user.is_superuser ? <UsersTab user={user} /> : null}
         </main>
       </div>
     </MathJaxContext>
+  )
+}
+
+function formatAnalyticsDay(day: string) {
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(`${day}T12:00:00`))
+}
+
+function DailyBars({ title, metric, days }: { title: string; metric: 'logins' | 'visits'; days: AnalyticsDay[] }) {
+  const max = Math.max(...days.map((day) => day[metric]), 1)
+  return (
+    <div className="panel analytics-chart">
+      <div className="section-heading"><div><h3>{title}</h3><p className="muted">Last 30 days</p></div><span className="status">Daily</span></div>
+      <div className="bar-chart" role="img" aria-label={`${title} for the last 30 days`}>
+        {days.map((day) => {
+          const value = day[metric]
+          return <div className="bar-column" key={day.day} title={`${formatAnalyticsDay(day.day)}: ${value}`}><span className="bar-value">{value || ''}</span><div className={`bar ${metric}`} style={{ height: `${Math.max(value / max * 100, value ? 5 : 0)}%` }} /><span className="bar-label">{formatAnalyticsDay(day.day)}</span></div>
+        })}
+      </div>
+    </div>
+  )
+}
+
+function AnalyticsTab({ user }: { user: User }) {
+  const [analytics, setAnalytics] = useState<Analytics | null>(null)
+  const [message, setMessage] = useState('Loading analytics…')
+
+  useEffect(() => {
+    apiRequest<Analytics>('/admin/analytics', {}, user)
+      .then((data) => { setAnalytics(data); setMessage('') })
+      .catch((error) => setMessage(error instanceof Error ? error.message : 'Could not load analytics.'))
+  }, [user])
+
+  return (
+    <section className="admin-section">
+      <div className="section-heading"><div><h2>Site analytics</h2><p className="muted">Successful sign-ins and page visits across the site.</p></div></div>
+      {message ? <p className="form-message" role="status">{message}</p> : null}
+      {analytics ? <>
+        <div className="analytics-summary">
+          <div className="panel metric-card"><span className="metric-label">Total logins</span><strong>{analytics.totals.logins.toLocaleString()}</strong><span className="muted">Successful sign-ins</span></div>
+          <div className="panel metric-card"><span className="metric-label">Total visits</span><strong>{analytics.totals.visits.toLocaleString()}</strong><span className="muted">Tracked page views</span></div>
+        </div>
+        <div className="analytics-charts"><DailyBars title="Login activity" metric="logins" days={analytics.daily} /><DailyBars title="Visit activity" metric="visits" days={analytics.daily} /></div>
+        <div className="panel table-wrap"><div className="section-heading analytics-table-heading"><div><h3>Successful login log</h3><p className="muted">Every successful sign-in, newest first.</p></div><span className="count-badge">{analytics.recent_logins.length}</span></div><table className="simple-table"><thead><tr><th>User</th><th>Email</th><th>Logged in</th></tr></thead><tbody>{analytics.recent_logins.map((login) => <tr key={login.id}><td>{login.username}</td><td>{login.email}</td><td>{new Date(login.logged_in_at).toLocaleString()}</td></tr>)}</tbody></table>{analytics.recent_logins.length === 0 ? <div className="empty-state">No successful logins recorded yet.</div> : null}</div>
+      </> : null}
+    </section>
   )
 }
 

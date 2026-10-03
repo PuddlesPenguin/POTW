@@ -1,7 +1,9 @@
 import FrontPage from './pages/FrontPage'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { useRef } from 'react'
 import type { UserState } from './types/user'
+import { apiRequest } from './lib/api'
 import Login from './pages/auth/Login'
 import Signup from './pages/auth/Signup'
 import Archive from './pages/Archive'
@@ -39,6 +41,7 @@ function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <TrackVisit />
       <Routes>
         <Route path="/" element={<FrontPage user={user} setUser={setUser} />} />
         <Route path="/login" element={<Login user={user} setUser={setUser} />} />
@@ -56,6 +59,22 @@ function App() {
       </Routes>
     </BrowserRouter>
   )
+}
+
+function TrackVisit() {
+  const { pathname } = useLocation()
+  const trackedPath = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (trackedPath.current === pathname) return
+    trackedPath.current = pathname
+    void apiRequest('/analytics/visits', {
+      method: 'POST',
+      body: JSON.stringify({ path: pathname }),
+    }).catch(() => undefined)
+  }, [pathname])
+
+  return null
 }
 
 function ScrollToTop() {

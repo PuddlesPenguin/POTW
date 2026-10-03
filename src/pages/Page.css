@@ -75,6 +75,20 @@
 .admin-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 12px; }
 .admin-tabs button { padding: 10px 14px; border: 0; border-radius: 4px; background: #e5d7be; color: #46381f; cursor: pointer; }
 .admin-tabs button.active { background: #cfb991; color: #302516; }
+.analytics-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.metric-card { display: grid; gap: 5px; }
+.metric-card strong { color: #493a24; font-size: 2rem; line-height: 1.1; }
+.metric-label { color: #6a5b43; font-size: .82rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+.analytics-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.analytics-chart { display: grid; gap: 18px; min-width: 0; }
+.analytics-chart h3, .analytics-table-heading h3 { font-size: 1.1rem; }
+.bar-chart { display: flex; align-items: end; gap: 3px; height: 190px; padding: 12px 4px 30px; border-bottom: 1px solid #c8b48d; }
+.bar-column { display: grid; grid-template-rows: 18px 1fr 24px; align-items: end; flex: 1; min-width: 0; height: 100%; text-align: center; }
+.bar { width: 100%; min-height: 0; border-radius: 3px 3px 0 0; background: #8e6f3e; }
+.bar.visits { background: #b56f48; }
+.bar-value { color: #6a5b43; font-size: .68rem; line-height: 1; }
+.bar-label { overflow: hidden; color: #6a5b43; font-size: .64rem; line-height: 1; text-overflow: ellipsis; white-space: nowrap; }
+.analytics-table-heading { margin-bottom: 8px; }
 .season-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
 .season-heading label { min-width: 180px; color: #f0dfc0; }
 .leaderboard-page { max-width: 1100px; }
@@ -113,6 +127,7 @@
   .profile-summary-actions { align-items: flex-start; flex-direction: column; gap: 12px; }
   .panel, .simple-card { padding: 16px; }
   .form-grid, .form-grid.three, .grade-row { grid-template-columns: 1fr; }
+  .analytics-summary, .analytics-charts { grid-template-columns: 1fr; }
   .season-heading, .card-title-row { align-items: flex-start; flex-direction: column; }
   .admin-filter-bar { align-items: stretch; flex-direction: column; }
   .admin-filter-bar label { min-width: 0; }

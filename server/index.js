@@ -849,7 +849,12 @@ app.put('/api/admin/problems/:id', requireAuth, requireAdmin, async (req, res, n
     const result = await query(
       `UPDATE problems SET
          title = $1, statement_latex = $2, solution_latex = $3, problem_source = $4,
-         proposed_by = $5, problem_type = $6, is_current = $7, is_archived = $8,
+         proposed_by = $5, problem_type = $6,
+         is_current = CASE
+           WHEN $8 = FALSE AND is_archived = TRUE THEN TRUE
+           ELSE $7
+         END,
+         is_archived = $8,
          archive_override = CASE
            WHEN $8 = FALSE AND is_archived = TRUE THEN TRUE
            WHEN $8 = TRUE THEN FALSE
@@ -1006,6 +1011,8 @@ app.get('/api/admin/users', requireAuth, requireSuperuser, async (_req, res, nex
 
 app.get('/api/admin/analytics', requireAuth, requireAdmin, async (_req, res, next) => {
   try {
+    // Recover gracefully if a deployment skipped the numbered analytics migration.
+    await ensureAnalyticsTables()
     const timeZone = 'America/Indiana/Indianapolis'
     const totals = await Promise.all([
       query('SELECT COUNT(*)::integer AS count FROM login_events'),

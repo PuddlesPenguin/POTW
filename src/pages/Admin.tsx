@@ -359,7 +359,7 @@ function ProblemsTab({ user }: { user: User }) {
         <label>Published hint (LaTeX supported)<textarea rows={3} value={form.hints} onChange={(event) => update('hints', event.target.value)} /></label>
         {form.hints ? <div className="latex-preview"><strong>Hint preview</strong><MathJax dynamic>{form.hints}</MathJax></div> : null}
         <div className="check-row"><label><input type="checkbox" checked={form.hints_enabled} onChange={(event) => update('hints_enabled', event.target.checked)} /> Show the published hint</label><label><input type="checkbox" checked={form.allow_hint_requests} onChange={(event) => update('allow_hint_requests', event.target.checked)} /> Allow hint requests</label></div>
-        <div className="check-row"><label><input type="checkbox" checked={form.is_current} onChange={(event) => update('is_current', event.target.checked)} /> Available when release date arrives</label><label><input type="checkbox" checked={form.is_archived} onChange={(event) => update('is_archived', event.target.checked)} /> Archived</label></div>
+        <div className="check-row"><label><input type="checkbox" checked={form.is_current} onChange={(event) => update('is_current', event.target.checked)} /> Available when release date arrives</label><label><input type="checkbox" checked={form.is_archived} onChange={(event) => setForm((current) => ({ ...current, is_archived: event.target.checked, ...(event.target.checked ? {} : { is_current: true }) }))} /> Archived</label></div>
         <button className="primary-button" type="submit">{editingId ? 'Save changes' : 'Create problem'}</button>
         {message ? <p className="form-message" role="status">{message}</p> : null}
       </form>

@@ -300,8 +300,8 @@ app.get('/api/problems/current', async (_req, res, next) => {
        WHERE is_current = TRUE AND is_archived = FALSE
          AND ((release_at IS NULL AND (release_date IS NULL OR release_date <= CURRENT_DATE))
               OR release_at <= CURRENT_TIMESTAMP)
-         AND ((due_at IS NULL AND (due_date IS NULL OR due_date >= CURRENT_DATE))
-              OR due_at >= CURRENT_TIMESTAMP)
+         AND (archive_override = TRUE OR ((due_at IS NULL AND (due_date IS NULL OR due_date >= CURRENT_DATE))
+              OR due_at >= CURRENT_TIMESTAMP))
        ORDER BY CASE WHEN LOWER(problem_type) LIKE '%comput%' THEN 0 ELSE 1 END, id`,
     )
     res.json({ problems: result.rows })
@@ -316,8 +316,8 @@ app.get('/api/problems/archive', async (_req, res, next) => {
       `SELECT ${publicProblemColumns}, solution_latex FROM problems
        WHERE release_date IS NOT NULL
          AND ((release_at IS NULL AND release_date <= CURRENT_DATE) OR release_at <= CURRENT_TIMESTAMP)
-         AND (is_archived = TRUE OR is_current = FALSE
-              OR (due_at IS NULL AND due_date < CURRENT_DATE) OR due_at < CURRENT_TIMESTAMP)
+         AND (is_archived = TRUE OR (archive_override = FALSE AND (is_current = FALSE
+              OR (due_at IS NULL AND due_date < CURRENT_DATE) OR due_at < CURRENT_TIMESTAMP)))
        ORDER BY release_date DESC NULLS LAST, id DESC`,
     )
     res.json({ problems: result.rows })
@@ -337,8 +337,8 @@ app.post('/api/submissions', requireAuth, upload.single('file'), async (req, res
       `SELECT id, due_date, problem_type FROM problems WHERE id = $1 AND is_current = TRUE AND is_archived = FALSE
        AND ((release_at IS NULL AND (release_date IS NULL OR release_date <= CURRENT_DATE))
             OR release_at <= CURRENT_TIMESTAMP)
-       AND ((due_at IS NULL AND (due_date IS NULL OR due_date >= CURRENT_DATE))
-            OR due_at >= CURRENT_TIMESTAMP)`,
+       AND (archive_override = TRUE OR ((due_at IS NULL AND (due_date IS NULL OR due_date >= CURRENT_DATE))
+            OR due_at >= CURRENT_TIMESTAMP))`,
       [problemId],
     )
     if (!problem.rows[0]) return res.status(404).json({ message: 'This problem is not currently accepting submissions.' })
@@ -458,8 +458,8 @@ app.patch('/api/submissions/:id', requireAuth, upload.single('file'), async (req
        WHERE s.id = $1 AND s.user_id = $2 AND p.is_current = TRUE AND p.is_archived = FALSE
          AND ((p.release_at IS NULL AND (p.release_date IS NULL OR p.release_date <= CURRENT_DATE))
               OR p.release_at <= CURRENT_TIMESTAMP)
-         AND ((p.due_at IS NULL AND (p.due_date IS NULL OR p.due_date >= CURRENT_DATE))
-              OR p.due_at >= CURRENT_TIMESTAMP)`,
+         AND (p.archive_override = TRUE OR ((p.due_at IS NULL AND (p.due_date IS NULL OR p.due_date >= CURRENT_DATE))
+              OR p.due_at >= CURRENT_TIMESTAMP))`,
       [Number(req.params.id), req.user.id],
     )
     const submission = current.rows[0]
@@ -650,8 +650,8 @@ app.post('/api/problems/:id/hint-requests', requireAuth, async (req, res, next) 
        WHERE id = $1 AND is_current = TRUE AND is_archived = FALSE
          AND ((release_at IS NULL AND (release_date IS NULL OR release_date <= CURRENT_DATE))
               OR release_at <= CURRENT_TIMESTAMP)
-         AND ((due_at IS NULL AND (due_date IS NULL OR due_date >= CURRENT_DATE))
-              OR due_at >= CURRENT_TIMESTAMP)`,
+         AND (archive_override = TRUE OR ((due_at IS NULL AND (due_date IS NULL OR due_date >= CURRENT_DATE))
+              OR due_at >= CURRENT_TIMESTAMP))`,
       [problemId],
     )
     if (!problem.rows[0]) return res.status(404).json({ message: 'Problem not found.' })
